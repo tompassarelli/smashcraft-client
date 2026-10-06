@@ -31,8 +31,9 @@ steps.
 
 The map writes a record of every finished match into the player's
 CustomMapData (smashcraft:docs/design/client.md, "Match records"). The History
-page reads each configured folder (Warcraft III's CustomMapData under
-Documents until the player sets them; remembered in the client's settings),
+page reads each configured folder (until the player sets them, every
+Warcraft III CustomMapData found: under Documents, and on Linux in each
+Steam/Proton prefix, ~/.wine and `WINEPREFIX`; remembered in the client's settings),
 ingests new records into the client's own store, `history.json` in its data
 folder, and lists the matches newest first. A record already stored (same
 build, serial and writer) is skipped and one cut short is refused. The Stats

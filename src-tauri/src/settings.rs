@@ -12,7 +12,7 @@ pub struct Settings {
     pub profile: ProfileChoice,
     /// The player's Any map bindings; the defaults when empty.
     pub any_map_bindings: Vec<Binding>,
-    /// The CustomMapData folders match records are read from; Warcraft III's own under Documents until the player sets them.
+    /// The CustomMapData folders match records are read from; the ones found on this computer until the player sets them.
     pub record_folders: Option<Vec<String>>,
 }
 

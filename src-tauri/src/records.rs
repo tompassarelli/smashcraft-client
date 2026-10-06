@@ -52,13 +52,54 @@ pub fn read_record_files(folders: &[String]) -> Vec<RecordFile> {
     files
 }
 
-/// Warcraft III's CustomMapData under the player's Documents, when it exists.
+/// Warcraft III's CustomMapData below a Documents folder.
+fn custom_map_data(documents: &Path) -> PathBuf {
+    documents.join("Warcraft III").join("CustomMapData")
+}
+
+/// The subfolders of `dir`, sorted; none when it can't be read.
+fn subfolders(dir: &Path) -> Vec<PathBuf> {
+    let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
+        .map(|entries| entries.flatten().map(|entry| entry.path()).filter(|path| path.is_dir()).collect())
+        .unwrap_or_default();
+    found.sort();
+    found
+}
+
+/// Every Wine user's Documents in a Wine prefix.
+fn wine_documents(prefix: &Path) -> Vec<PathBuf> {
+    subfolders(&prefix.join("drive_c").join("users")).into_iter().map(|user| user.join("Documents")).collect()
+}
+
+/// Warcraft III's CustomMapData folders that exist: under `home`'s Documents
+/// (Windows, macOS), then in Wine prefixes on Linux: every Steam/Proton
+/// prefix, ~/.wine and `wine_prefix`. Only reads; nothing is written.
+pub fn find_folders(home: &Path, wine_prefix: Option<&Path>) -> Vec<String> {
+    let mut documents = vec![home.join("Documents")];
+    for prefix in subfolders(&home.join(".local/share/Steam/steamapps/compatdata")) {
+        documents.extend(wine_documents(&prefix.join("pfx")));
+    }
+    documents.extend(wine_documents(&home.join(".wine")));
+    if let Some(prefix) = wine_prefix {
+        documents.extend(wine_documents(prefix));
+    }
+    let mut folders: Vec<String> = Vec::new();
+    for folder in documents.iter().map(|d| custom_map_data(d)).filter(|f| f.is_dir()) {
+        let folder = folder.to_string_lossy().into_owned();
+        if !folders.contains(&folder) {
+            folders.push(folder);
+        }
+    }
+    folders
+}
+
+/// The record folders found on this computer, for a player who hasn't set them.
 pub fn default_folders() -> Vec<String> {
     let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) else {
         return Vec::new();
     };
-    let folder = PathBuf::from(home).join("Documents").join("Warcraft III").join("CustomMapData");
-    if folder.is_dir() { vec![folder.to_string_lossy().into_owned()] } else { Vec::new() }
+    let wine_prefix = std::env::var_os("WINEPREFIX").map(PathBuf::from);
+    find_folders(Path::new(&home), wine_prefix.as_deref())
 }
 
 /// The history store: the pages' JSON, kept as written.
@@ -106,6 +147,30 @@ mod tests {
         assert!(files.iter().all(|f| f.text.starts_with("function PreloadFiles") && f.modified > 0));
         assert!(!is_record_name("smashcraft-match-index.pld"));
         assert!(!is_record_name("smashcraft-match-.txt"));
+    }
+
+    #[test]
+    fn finds_custom_map_data_in_documents_steam_prefixes_wine_and_wineprefix() {
+        let home = std::env::temp_dir().join(format!("smashcraft-find-{}", std::process::id()));
+        let other = home.join("elsewhere");
+        let made = [
+            home.join("Documents/Warcraft III/CustomMapData"),
+            home.join(".local/share/Steam/steamapps/compatdata/3516115571/pfx/drive_c/users/steamuser/Documents/Warcraft III/CustomMapData"),
+            home.join(".wine/drive_c/users/tom/Documents/Warcraft III/CustomMapData"),
+            other.join("drive_c/users/tom/Documents/Warcraft III/CustomMapData"),
+        ];
+        for folder in &made {
+            std::fs::create_dir_all(folder).unwrap();
+        }
+        // A Proton prefix without Warcraft III, and one whose Documents has no CustomMapData.
+        std::fs::create_dir_all(home.join(".local/share/Steam/steamapps/compatdata/228980/pfx/drive_c/users/steamuser/Documents")).unwrap();
+        std::fs::create_dir_all(home.join(".local/share/Steam/steamapps/compatdata/1/pfx/drive_c/users/steamuser/Documents/Warcraft III")).unwrap();
+        let expected: Vec<String> = made.iter().map(|f| f.to_string_lossy().into_owned()).collect();
+        assert_eq!(find_folders(&home, Some(&other)), expected);
+        assert_eq!(find_folders(&home, None), expected[..3].to_vec());
+        // The same prefix named twice is listed once.
+        assert_eq!(find_folders(&home, Some(&home.join(".wine"))), expected[..3].to_vec());
+        std::fs::remove_dir_all(home).unwrap();
     }
 
     #[test]
