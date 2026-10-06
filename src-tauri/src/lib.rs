@@ -7,6 +7,7 @@ pub mod autostart;
 pub mod link;
 pub mod play;
 pub mod settings;
+pub mod single;
 pub mod tray;
 
 use std::sync::{Arc, LazyLock, Mutex};
@@ -159,6 +160,9 @@ fn play(app: AppHandle) -> Result<play::PlayState, String> {
 
 pub fn run() {
     let hidden = std::env::args().any(|arg| arg == "--hidden");
+    let single::Claim::First(instance) = single::claim(single::client_port()) else {
+        return;
+    };
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
         .setup(move |app| {
@@ -203,6 +207,10 @@ pub fn run() {
             std::thread::spawn({
                 let shared = shared.clone();
                 move || link::run(shared, link::service_port(), sink, starter)
+            });
+            std::thread::spawn({
+                let app = app.handle().clone();
+                move || single::listen(instance, move || show_window(&app))
             });
             app.manage(AppState { link: shared, store, settings: Mutex::new(settings) });
             if !hidden {

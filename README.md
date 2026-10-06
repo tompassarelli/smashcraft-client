@@ -20,7 +20,8 @@ service is single-instance, so a client never starts a second copy beside a
 running one. `WC3_CONTROLLER_PORT` points the client at a test service.
 
 Closing the window hides it to the tray; the tray's light is the overall
-status and its menu opens the window or quits. "Start with my computer"
+status and its menu opens the window or quits. Opening Smashcraft again while it
+runs shows the running window (the first client holds 127.0.0.1:47632). "Start with my computer"
 starts the client hidden in the tray at login (Linux: an XDG autostart entry
 naming the installed launcher; Windows/macOS: the autostart plugin). Play runs
 `bun wisp play` in `SMASHCRAFT_TS` or ~/code/smashcraft/main/ts and shows its
