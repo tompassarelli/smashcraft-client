@@ -40,7 +40,7 @@ export type Control =
 
 export type Press = { key: string } | "left_click" | "right_click" | "pointer";
 export type Binding = { control: Control; action: string; press: Press };
-export type Bindings = { smashcraft: Binding[]; any_map: Binding[]; any_map_defaults: Binding[]; profile: ProfileChoice };
+export type Bindings = { smashcraft: Binding[]; smashcraft_menus: Binding[]; any_map: Binding[]; any_map_defaults: Binding[]; profile: ProfileChoice };
 
 export type PlayState = { available: boolean; running: boolean; lines: string[]; finished: boolean | null };
 

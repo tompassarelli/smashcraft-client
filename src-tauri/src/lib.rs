@@ -106,6 +106,7 @@ fn set_profile(state: State<AppState>, choice: ProfileChoice) -> Result<bool, St
 #[derive(Serialize)]
 struct Bindings {
     smashcraft: Vec<Binding>,
+    smashcraft_menus: Vec<Binding>,
     any_map: Vec<Binding>,
     any_map_defaults: Vec<Binding>,
     profile: ProfileChoice,
@@ -116,6 +117,7 @@ fn bindings(state: State<AppState>) -> Bindings {
     let settings = state.settings.lock().unwrap();
     Bindings {
         smashcraft: wc3_controller_model::smashcraft_bindings(),
+        smashcraft_menus: wc3_controller_model::smashcraft_menu_bindings(),
         any_map: if settings.any_map_bindings.is_empty() {
             wc3_controller_model::any_map_bindings()
         } else {

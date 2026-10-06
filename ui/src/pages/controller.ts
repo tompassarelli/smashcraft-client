@@ -125,16 +125,27 @@ function profileCard(onChoice: (choice: ProfileChoice) => void) {
 
 function mappingCard() {
   const smashcraftTable = h("table.mapping");
+  const menusTable = h("table.mapping");
   const anyMapTable = h("table.mapping");
   const reset = h("button.quiet", { type: "button" }, "Back to the default keys");
   let anyMap: Binding[] = [];
   const save = async () => {
     await api.setAnyMapBindings(anyMap);
   };
-  const renderSmashcraft = (bindings: Binding[]) => {
-    smashcraftTable.replaceChildren(
-      ...bindings.map((b) => h("tr", {}, h("th", {}, controlLabel(b.control)), h("td", {}, b.action))),
-    );
+  const rows = (bindings: Binding[]) => {
+    // A stick's four directions doing the same thing read as one row.
+    const seen = new Set<string>();
+    return bindings.flatMap((b) => {
+      const stick = /^(left|right)_/.exec(b.control)?.[1];
+      const label = stick !== undefined && b.press === "pointer" ? `${stick === "left" ? "Left" : "Right"} stick` : controlLabel(b.control);
+      if (seen.has(label)) return [];
+      seen.add(label);
+      return [h("tr", {}, h("th", {}, label), h("td", {}, b.action))];
+    });
+  };
+  const renderSmashcraft = (bindings: Binding[], menus: Binding[]) => {
+    smashcraftTable.replaceChildren(...rows(bindings));
+    menusTable.replaceChildren(...rows(menus));
   };
   const renderAnyMap = () => {
     const options = pressOptions();
@@ -152,7 +163,7 @@ function mappingCard() {
     );
   };
   const load = (bindings: Bindings, defaults?: Binding[]) => {
-    renderSmashcraft(bindings.smashcraft);
+    renderSmashcraft(bindings.smashcraft, bindings.smashcraft_menus);
     anyMap = (defaults ?? bindings.any_map).map((b) => ({ ...b }));
     renderAnyMap();
   };
@@ -168,7 +179,7 @@ function mappingCard() {
     {},
     h("h2", {}, "Buttons"),
     h("div.columns", {},
-      h("div", {}, h("h3", {}, "Smashcraft"), smashcraftTable),
+      h("div", {}, h("h3", {}, "Smashcraft"), smashcraftTable, h("h3", {}, "Smashcraft menus"), menusTable),
       h("div", {}, h("h3", {}, "Any map"), anyMapTable, reset),
     ),
   );
