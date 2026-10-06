@@ -1,7 +1,7 @@
 # Smashcraft client
 
 The desktop app players open: a window with routed pages (Controller,
-History, Stats and Online now; replays slot into `ROUTES` in
+History, Stats, Replays and Online; more slot into `ROUTES` in
 smashcraft:client/ui/src/main.ts) and a tray light. Rust backend in
 smashcraft:client/src-tauri (Tauri v2), pages in TypeScript built with Bun in
 smashcraft:client/ui, embedded into the binary at build time.
@@ -57,9 +57,31 @@ The first visit asks once to add Smashcraft's page to Warcraft III's menus
 runner is smashcraft:client/src-tauri/src/online.rs and the page
 smashcraft:client/ui/src/pages/online.ts.
 
+## Replays
+
+Every client records each match as a replay in its CustomMapData folder: a
+manifest, `smashcraft-replay-N.txt`, with its parts beside it
+(smashcraft:docs/design/client.md, "Full-match replays"). The Replays page
+lists the replays in the History page's folders, each beside the record of the
+same match, and the replays the client keeps in `replays/` in its data
+folder. "Save a copy to share" joins one into a single file there; "Open a
+replay file…" plays a file copied from another computer and keeps it.
+
+The viewer draws the replayed match (each fighter's hurt volumes, active
+strikes and projectiles, damage and stocks) with play and pause (Space), a
+frame back or forward (← →) and a seek bar. It runs the simulation of the
+version that recorded the replay. The page build makes `sim.js` from
+smashcraft:ts/src/game/replay/viewer.ts, stamped with its source version
+(smashcraft:ts/scripts/sourceVersion.ts), and the client keeps a copy in
+`sims/` for every version it runs. A replay from a version it doesn't hold
+names that version. Joining and opening are in smashcraft:client/ui/src/replays.ts
+and smashcraft:client/ui/src/playback.ts. The Rust side
+(smashcraft:client/src-tauri/src/replays.rs) only reads and keeps files.
+
 ## Build, test, install
 
 ```sh
+(cd ts && bun install)   # the Replays page's simulation imports Wisp
 cd client/ui && bun install && bun test && bun run check && bun run build
 cd ../src-tauri && nix-shell ../shell.nix --run 'cargo test --jobs 2'
 # Install for this user (NixOS): build, keep its libraries alive, write the

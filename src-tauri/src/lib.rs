@@ -1,5 +1,5 @@
-//! The Smashcraft client: a window with routed pages (Controller, History and
-//! Stats and Online now; replays later) and a tray light. Controller support comes
+//! The Smashcraft client: a window with routed pages (Controller, History,
+//! Stats, Replays and Online) and a tray light. Controller support comes
 //! from the Warcraft III Controller service over its local interface; the
 //! client starts the bundled service only when none answers.
 
@@ -8,6 +8,7 @@ pub mod link;
 pub mod online;
 pub mod play;
 pub mod records;
+pub mod replays;
 pub mod settings;
 pub mod single;
 pub mod tray;
@@ -36,6 +37,7 @@ struct AppState {
     history: records::History,
     online: Arc<online::Online>,
     log_dir: Option<std::path::PathBuf>,
+    kept: replays::Kept,
 }
 
 impl AppState {
@@ -182,6 +184,37 @@ fn save_history(state: State<AppState>, history: serde_json::Value) -> Result<()
 }
 
 #[tauri::command]
+fn read_replays(state: State<AppState>) -> Vec<replays::ReplayFile> {
+    let folders = record_folders_of(&state.settings.lock().unwrap());
+    replays::read_replay_files(&folders, &state.kept.replays)
+}
+
+#[tauri::command]
+fn read_replay_parts(folder: String, serial: u32, parts: u32) -> Result<Vec<String>, String> {
+    replays::read_parts(&folder, serial, parts)
+}
+
+#[tauri::command]
+fn keep_replay(state: State<AppState>, name: String, text: String) -> Result<String, String> {
+    state.kept.keep_replay(&name, &text)
+}
+
+#[tauri::command]
+fn keep_sim(state: State<AppState>, version: String, code: String) -> Result<(), String> {
+    state.kept.keep_sim(&version, &code)
+}
+
+#[tauri::command]
+fn kept_sim(state: State<AppState>, version: String) -> Option<String> {
+    state.kept.sim(&version)
+}
+
+#[tauri::command]
+fn kept_sims(state: State<AppState>) -> Vec<String> {
+    state.kept.sims()
+}
+
+#[tauri::command]
 fn play_state() -> play::PlayState {
     PLAY.state()
 }
@@ -259,6 +292,7 @@ pub fn run() {
             let config = app.path().app_config_dir()?;
             let store = Store::new(&config);
             let history = records::History::new(&app.path().app_data_dir()?);
+            let kept = replays::Kept::new(&app.path().app_data_dir()?);
             let settings = store.load();
             let shared = Shared::new(settings.controller_on);
             shared.greet(vec![ClientMessage::Profile(settings.profile)]);
@@ -303,7 +337,7 @@ pub fn run() {
                 let app = app.handle().clone();
                 move || single::listen(instance, move || show_window(&app))
             });
-            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), log_dir });
+            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), log_dir, kept });
             if !hidden {
                 show_window(app.handle());
             }
@@ -338,6 +372,12 @@ pub fn run() {
             online_join,
             online_start_now,
             online_cancel,
+            read_replays,
+            read_replay_parts,
+            keep_replay,
+            keep_sim,
+            kept_sim,
+            kept_sims,
         ])
         .run(tauri::generate_context!())
         .expect("Smashcraft failed to start");

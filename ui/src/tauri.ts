@@ -1,6 +1,7 @@
 // The Rust side's commands and events (app.withGlobalTauri exposes window.__TAURI__).
 import type { Bindings, Binding, ControllerState, InputView, OnlineState, PlayState, ProfileChoice } from "./model";
 import type { HistoryStore, RecordFile } from "./records";
+import type { ReplayFile } from "./replays";
 
 type TauriGlobal = {
   core: { invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> };
@@ -35,6 +36,12 @@ export const api = {
   onlineStartNow: () => invoke<boolean>("online_start_now"),
   onlineCancel: () => invoke<void>("online_cancel"),
   onOnline: (handler: (state: OnlineState) => void) => tauri().event.listen<OnlineState>("online", (e) => handler(e.payload)),
+  readReplays: () => invoke<ReplayFile[]>("read_replays"),
+  readReplayParts: (folder: string, serial: number, parts: number) => invoke<string[]>("read_replay_parts", { folder, serial, parts }),
+  keepReplay: (name: string, text: string) => invoke<string>("keep_replay", { name, text }),
+  keepSim: (version: string, code: string) => invoke<void>("keep_sim", { version, code }),
+  keptSim: (version: string) => invoke<string | null>("kept_sim", { version }),
+  keptSims: () => invoke<string[]>("kept_sims"),
   onController: (handler: (state: ControllerState) => void) =>
     tauri().event.listen<ControllerState>("controller", (e) => handler(e.payload)),
   onInput: (handler: (input: InputView) => void) => tauri().event.listen<InputView>("input", (e) => handler(e.payload)),

@@ -121,3 +121,9 @@ table.stats { width: 100%; border-collapse: collapse; font-variant-numeric: tabu
 .code-box { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
 .code { font: 700 28px/1 ui-monospace, monospace; letter-spacing: 0.14em; color: var(--gold); padding: 8px 14px; border-radius: 8px; background: var(--panel-2); user-select: all; }
 .online-failed { border-color: var(--red); }
+.replay-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.replay-actions .saved { font-size: 13px; overflow-wrap: anywhere; }
+.replay-canvas { width: 100%; max-width: 960px; display: block; margin: 0 auto; border-radius: 8px; background: #15110d; }
+.replay-controls { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.replay-controls .seek { flex: 1; accent-color: var(--gold); }
+.frame-label { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 170px; text-align: right; }

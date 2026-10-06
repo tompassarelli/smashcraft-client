@@ -1,6 +1,7 @@
 // Builds the client's pages into dist/, which the Rust app embeds.
 import { cpSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { sourceVersion } from "../../ts/scripts/sourceVersion";
 
 const here = import.meta.dir;
 const dist = join(here, "dist");
@@ -14,6 +15,23 @@ const result = await Bun.build({
 });
 if (!result.success) {
   for (const log of result.logs) console.error(log);
+  process.exit(1);
+}
+// The simulation the Replays page watches replays in: this source's version
+// (smashcraft:ts/scripts/sourceVersion.ts), kept by the client for every
+// version it has played.
+const ts = join(here, "../../ts");
+const sim = await Bun.build({
+  entrypoints: [join(ts, "src/game/replay/viewer.ts")],
+  outdir: dist,
+  naming: "sim.js",
+  target: "browser",
+  format: "esm",
+  minify: true,
+  define: { SMASHCRAFT_SOURCE: JSON.stringify(sourceVersion(ts)) },
+});
+if (!sim.success) {
+  for (const log of sim.logs) console.error(log);
   process.exit(1);
 }
 cpSync(join(here, "index.html"), join(dist, "index.html"));
