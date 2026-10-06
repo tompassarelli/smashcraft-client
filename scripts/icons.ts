@@ -69,7 +69,7 @@ function ico(png: Uint8Array, size: number): Uint8Array {
 }
 
 if (import.meta.main) {
-  const dir = new URL("../src-tauri/icons/", import.meta.url).pathname;
+  const dir = import.meta.dir + "/../src-tauri/icons/";
   writeFileSync(dir + "icon.png", iconPng(256));
   writeFileSync(dir + "32x32.png", iconPng(32));
   writeFileSync(dir + "128x128.png", iconPng(128));

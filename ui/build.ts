@@ -1,12 +1,14 @@
 // Builds the client's pages into dist/, which the Rust app embeds.
 import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 
-const here = new URL(".", import.meta.url).pathname;
-rmSync(here + "dist", { recursive: true, force: true });
-mkdirSync(here + "dist");
+const here = import.meta.dir;
+const dist = join(here, "dist");
+rmSync(dist, { recursive: true, force: true });
+mkdirSync(dist);
 const result = await Bun.build({
-  entrypoints: [here + "src/main.ts"],
-  outdir: here + "dist",
+  entrypoints: [join(here, "src/main.ts")],
+  outdir: dist,
   target: "browser",
   minify: true,
 });
@@ -14,5 +16,5 @@ if (!result.success) {
   for (const log of result.logs) console.error(log);
   process.exit(1);
 }
-cpSync(here + "index.html", here + "dist/index.html");
-cpSync(here + "styles.css", here + "dist/styles.css");
+cpSync(join(here, "index.html"), join(dist, "index.html"));
+cpSync(join(here, "styles.css"), join(dist, "styles.css"));
