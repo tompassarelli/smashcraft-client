@@ -90,3 +90,25 @@ select { font: inherit; background: var(--panel-2); color: var(--text); border: 
 .play-panel.failed { border-color: var(--red); }
 .play-steps { margin: 0; padding-left: 20px; font-size: 13px; max-height: 50vh; overflow: auto; }
 .play-steps li:last-child { font-weight: 600; }
+
+.muted { color: var(--muted); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.card-head h2 { margin: 0; }
+.matches { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.match { background: var(--panel-2); border-radius: 8px; padding: 10px 12px; }
+.match-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; font-size: 13px; }
+.match-head .result { font-weight: 700; font-size: 15px; }
+.match-head .when { margin-left: auto; }
+.fighters { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
+.fighter.won b { color: var(--gold); }
+.fighter.you::after { content: " (you)"; color: var(--muted); font-size: 13px; }
+.folders { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.folders li { display: flex; align-items: center; gap: 10px; }
+.folders .path { font-family: ui-monospace, monospace; font-size: 13px; overflow-wrap: anywhere; flex: 1; }
+.folders button.quiet { margin-top: 0; }
+.add-folder { display: flex; gap: 8px; }
+.folder-input { flex: 1; font: inherit; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+table.stats { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.stats th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 10px 6px 0; }
+.stats td { padding: 6px 10px 6px 0; }
+.stats tbody tr { border-top: 1px solid var(--line); }

@@ -1,0 +1,17 @@
+function PreloadFiles takes nothing returns nothing
+
+	call PreloadStart()
+	call Preload( "smashcraft-match v=1 build=0.0.60 serial=1 local=P1 mode=versus" )
+	call Preload( "rules stocks=3 minutes=7" )
+	call Preload( "result frames=4521 winner=P1 timed-out=0 interrupted=0" )
+	call Preload( "stage id=2 name=Frozen Throne" )
+	call Preload( "fighter slot=P1 kind=human player=Tom#1234 character=4 stocks=2 damage=37 kos=3 falls=1 left=0 name=Mountain King" )
+	call Preload( "combat slot=P1 dealt=141 openings=9 per-opening=15.6 openings-per-ko=3.0 techs=2 missed-techs=1 ledge-grabs=4" )
+	call Preload( "fighter slot=P2 kind=computer character=6 stocks=0 damage=112 kos=1 falls=3 left=0 name=Lich" )
+	call Preload( "combat slot=P2 dealt=36 openings=3 per-opening=12.0 openings-per-ko=3.0 techs=0 missed-techs=0 ledge-grabs=1" )
+	call Preload( "end lines=8" )
+	call PreloadEnd( 0.0 )
+
+endfunction
+
+

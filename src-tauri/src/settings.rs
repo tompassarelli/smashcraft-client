@@ -12,6 +12,8 @@ pub struct Settings {
     pub profile: ProfileChoice,
     /// The player's Any map bindings; the defaults when empty.
     pub any_map_bindings: Vec<Binding>,
+    /// The CustomMapData folders match records are read from; Warcraft III's own under Documents until the player sets them.
+    pub record_folders: Option<Vec<String>>,
 }
 
 pub struct Store {
@@ -55,6 +57,7 @@ mod tests {
             controller_on: true,
             profile: ProfileChoice::AnyMap,
             any_map_bindings: wc3_controller_model::any_map_bindings(),
+            record_folders: Some(vec!["/games/CustomMapData".into()]),
         };
         store.save(&settings).unwrap();
         assert_eq!(store.load(), settings);

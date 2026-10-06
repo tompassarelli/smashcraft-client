@@ -1,0 +1,11 @@
+function PreloadFiles takes nothing returns nothing
+
+	call PreloadStart()
+	call Preload( "" )
+call BlzSetAbilityTooltip('$wsl', "5", 0)
+//" )
+	call PreloadEnd( 0.0 )
+
+endfunction
+
+

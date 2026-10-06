@@ -1,0 +1,17 @@
+function PreloadFiles takes nothing returns nothing
+
+	call PreloadStart()
+	call Preload( "smashcraft-match v=1 build=0.0.60 serial=2 local=P1 mode=versus" )
+	call Preload( "rules stocks=3 minutes=7" )
+	call Preload( "result frames=6000 winner=P2 timed-out=0 interrupted=0" )
+	call Preload( "stage id=1 name=Lordaeron Keep" )
+	call Preload( "fighter slot=P1 kind=human player=Tom#1234 character=1 stocks=0 damage=88 kos=2 falls=3 left=0 name=Archer" )
+	call Preload( "combat slot=P1 dealt=99 openings=6 per-opening=16.5 openings-per-ko=3.0 techs=1 missed-techs=2 ledge-grabs=2" )
+	call Preload( "fighter slot=P2 kind=computer character=6 stocks=1 damage=60 kos=3 falls=2 left=0 name=Lich" )
+	call Preload( "combat slot=P2 dealt=150 openings=10 per-opening=15.0 openings-per-ko=3.3 techs=0 missed-techs=0 ledge-grabs=0" )
+	call Preload( "end lines=8" )
+	call PreloadEnd( 0.0 )
+
+endfunction
+
+

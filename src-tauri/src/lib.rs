@@ -1,11 +1,12 @@
-//! The Smashcraft client: a window with routed pages (Controller now; history,
-//! stats, replays and online later) and a tray light. Controller support comes
+//! The Smashcraft client: a window with routed pages (Controller, History and
+//! Stats now; replays and online later) and a tray light. Controller support comes
 //! from the Warcraft III Controller service over its local interface; the
 //! client starts the bundled service only when none answers.
 
 pub mod autostart;
 pub mod link;
 pub mod play;
+pub mod records;
 pub mod settings;
 pub mod single;
 pub mod tray;
@@ -31,6 +32,7 @@ struct AppState {
     link: Arc<Shared>,
     store: Store,
     settings: Mutex<Settings>,
+    history: records::History,
 }
 
 impl AppState {
@@ -145,6 +147,37 @@ fn set_start_with_computer(app: AppHandle, on: bool) -> Result<bool, String> {
     autostart::set(&app, on)
 }
 
+fn record_folders_of(settings: &Settings) -> Vec<String> {
+    settings.record_folders.clone().unwrap_or_else(records::default_folders)
+}
+
+#[tauri::command]
+fn record_folders(state: State<AppState>) -> Vec<String> {
+    record_folders_of(&state.settings.lock().unwrap())
+}
+
+#[tauri::command]
+fn set_record_folders(state: State<AppState>, folders: Vec<String>) -> Result<Vec<String>, String> {
+    state.update(|s| s.record_folders = Some(folders))?;
+    Ok(record_folders_of(&state.settings.lock().unwrap()))
+}
+
+#[tauri::command]
+fn read_records(state: State<AppState>) -> Vec<records::RecordFile> {
+    let folders = record_folders_of(&state.settings.lock().unwrap());
+    records::read_record_files(&folders)
+}
+
+#[tauri::command]
+fn history(state: State<AppState>) -> serde_json::Value {
+    state.history.load()
+}
+
+#[tauri::command]
+fn save_history(state: State<AppState>, history: serde_json::Value) -> Result<(), String> {
+    state.history.save(&history)
+}
+
 #[tauri::command]
 fn play_state() -> play::PlayState {
     PLAY.state()
@@ -168,6 +201,7 @@ pub fn run() {
         .setup(move |app| {
             let config = app.path().app_config_dir()?;
             let store = Store::new(&config);
+            let history = records::History::new(&app.path().app_data_dir()?);
             let settings = store.load();
             let shared = Shared::new(settings.controller_on);
             shared.greet(vec![ClientMessage::Profile(settings.profile)]);
@@ -212,7 +246,7 @@ pub fn run() {
                 let app = app.handle().clone();
                 move || single::listen(instance, move || show_window(&app))
             });
-            app.manage(AppState { link: shared, store, settings: Mutex::new(settings) });
+            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history });
             if !hidden {
                 show_window(app.handle());
             }
@@ -234,6 +268,11 @@ pub fn run() {
             set_start_with_computer,
             play_state,
             play,
+            record_folders,
+            set_record_folders,
+            read_records,
+            history,
+            save_history,
         ])
         .run(tauri::generate_context!())
         .expect("Smashcraft failed to start");

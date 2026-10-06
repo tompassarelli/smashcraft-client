@@ -1,5 +1,6 @@
 // The Rust side's commands and events (app.withGlobalTauri exposes window.__TAURI__).
 import type { Bindings, Binding, ControllerState, InputView, PlayState, ProfileChoice } from "./model";
+import type { HistoryStore, RecordFile } from "./records";
 
 type TauriGlobal = {
   core: { invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> };
@@ -20,6 +21,11 @@ export const api = {
   setStartWithComputer: (on: boolean) => invoke<boolean>("set_start_with_computer", { on }),
   playState: () => invoke<PlayState>("play_state"),
   play: () => invoke<PlayState>("play"),
+  recordFolders: () => invoke<string[]>("record_folders"),
+  setRecordFolders: (folders: string[]) => invoke<string[]>("set_record_folders", { folders }),
+  readRecords: () => invoke<RecordFile[]>("read_records"),
+  history: () => invoke<unknown>("history"),
+  saveHistory: (history: HistoryStore) => invoke<void>("save_history", { history }),
   onController: (handler: (state: ControllerState) => void) =>
     tauri().event.listen<ControllerState>("controller", (e) => handler(e.payload)),
   onInput: (handler: (input: InputView) => void) => tauri().event.listen<InputView>("input", (e) => handler(e.payload)),

@@ -1,0 +1,11 @@
+function PreloadFiles takes nothing returns nothing
+
+	call PreloadStart()
+	call Preload( "smashcraft-match v=1 build=0.0.60 serial=3 local=P1 mode=versus" )
+	call Preload( "rules stocks=3 minutes=7" )
+	call Preload( "end lines=8" )
+	call PreloadEnd( 0.0 )
+
+endfunction
+
+

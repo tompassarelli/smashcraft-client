@@ -1,7 +1,7 @@
 # Smashcraft client
 
-The desktop app players open: a window with routed pages (Controller now;
-history, stats, replays and online slot into `ROUTES` in
+The desktop app players open: a window with routed pages (Controller,
+History and Stats now; replays and online slot into `ROUTES` in
 smashcraft:client/ui/src/main.ts) and a tray light. Rust backend in
 smashcraft:client/src-tauri (Tauri v2), pages in TypeScript built with Bun in
 smashcraft:client/ui, embedded into the binary at build time.
@@ -26,6 +26,22 @@ starts the client hidden in the tray at login (Linux: an XDG autostart entry
 naming the installed launcher; Windows/macOS: the autostart plugin). Play runs
 `bun wisp play` in `SMASHCRAFT_TS` or ~/code/smashcraft/main/ts and shows its
 steps.
+
+## Match history and stats
+
+The map writes a record of every finished match into the player's
+CustomMapData (smashcraft:docs/design/client.md, "Match records"). The History
+page reads each configured folder (Warcraft III's CustomMapData under
+Documents until the player sets them; remembered in the client's settings),
+ingests new records into the client's own store, `history.json` in its data
+folder, and lists the matches newest first. A record already stored (same
+build, serial and writer) is skipped and one cut short is refused. The Stats
+page counts versus matches from the writer's side: win rate per fighter and
+per matchup, KOs and falls per match and damage dealt per match. Parsing,
+ingest and stats are in smashcraft:client/ui/src/records.ts and
+smashcraft:client/ui/src/stats.ts; the Rust side
+(smashcraft:client/src-tauri/src/records.rs) only reads folders and keeps the
+store. Fixture folders: smashcraft:client/ui/test/fixtures/records/.
 
 ## Build, test, install
 
