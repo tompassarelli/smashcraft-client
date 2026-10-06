@@ -1,0 +1,14 @@
+{
+  "name": "smashcraft-client-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build.ts",
+    "check": "bun node_modules/typescript/bin/tsc --noEmit -p .",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "typescript": "npm:typescript@7.0.2",
+    "@types/bun": "1.3.13"
+  }
+}

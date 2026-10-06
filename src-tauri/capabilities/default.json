@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The main window's access to the client's own commands and events.",
+  "windows": ["main"],
+  "permissions": ["core:default", "autostart:default"]
+}

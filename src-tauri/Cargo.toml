@@ -1,0 +1,30 @@
+[package]
+name = "smashcraft-client"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96.1"
+publish = false
+license = "MIT"
+description = "Smashcraft: controller, play and (later) history, stats, replays and online"
+
+[lib]
+name = "smashcraft_client"
+path = "src/lib.rs"
+
+[[bin]]
+name = "smashcraft"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+wc3-controller-model = { path = "../../companion/model" }
+
+[profile.release]
+codegen-units = 16
+lto = false
