@@ -1,7 +1,7 @@
 // Builds the client's pages into dist/, which the Rust app embeds.
-import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { sourceVersion } from "../../ts/scripts/sourceVersion";
+import { SOURCE_STAMP_TEXT, sourceVersion } from "../../ts/scripts/sourceVersion";
 
 const here = import.meta.dir;
 const dist = join(here, "dist");
@@ -28,11 +28,14 @@ const sim = await Bun.build({
   target: "browser",
   format: "esm",
   minify: true,
-  define: { SMASHCRAFT_SOURCE: JSON.stringify(sourceVersion(ts)) },
 });
 if (!sim.success) {
   for (const log of sim.logs) console.error(log);
   process.exit(1);
 }
+const simFile = join(dist, "sim.js");
+const simCode = readFileSync(simFile, "utf8");
+if (!simCode.includes(SOURCE_STAMP_TEXT)) throw new Error("sim.js holds no source stamp to replace");
+writeFileSync(simFile, simCode.replaceAll(SOURCE_STAMP_TEXT, JSON.stringify(sourceVersion(ts))));
 cpSync(join(here, "index.html"), join(dist, "index.html"));
 cpSync(join(here, "styles.css"), join(dist, "styles.css"));
