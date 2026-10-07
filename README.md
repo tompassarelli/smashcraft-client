@@ -78,6 +78,19 @@ names that version. Joining and opening are in smashcraft:client/ui/src/replays.
 and smashcraft:client/ui/src/playback.ts. The Rust side
 (smashcraft:client/src-tauri/src/replays.rs) only reads and keeps files.
 
+Warcraft III keeps only its last game's replay, `LastReplay.w3g` in each
+account's `BattleNet/<id>/Replays` folder beside CustomMapData. While the
+client runs it checks those files every 5 s; when one changes, and a match
+record was written during that game (its length is in the file's header),
+it keeps a copy in `warcraft-replays/` in its data folder, named
+`warcraft-<UTC date>-<time>-<hash>.w3g` and listed in `games.json` with the
+records it holds. The same content is kept once. Each match's row on the
+Replays page then offers "Watch in Warcraft": it copies the game's replay
+back into the Warcraft `Replays` folder it came from as
+`Smashcraft <date> <time>.w3g` and tells the player to open it from
+Warcraft III's Replays menu. A Warcraft replay covers the whole game, every
+rematch included (smashcraft:client/src-tauri/src/warcraft_replays.rs).
+
 ## Build, test, install
 
 ```sh

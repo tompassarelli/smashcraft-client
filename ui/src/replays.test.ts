@@ -1,13 +1,14 @@
 // #141: replays listed beside their records, joined from the map's parts,
 // copied as one file and watched with pause, frame step and seek; a replay
 // from a version the client doesn't hold names that version.
+// #159: Warcraft's own replay of a game is listed under the matches played in it.
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TAPE_REPLAY_SERIAL, recordTapeReplay } from "../../../ts/src/game/replay/tapeReplay";
 import * as ownSimulation from "../../../ts/src/game/replay/viewer";
 import { Playback, clock } from "./playback";
-import { type ReplayFile, type Simulation, type Simulations, joinedReplay, keptName, openForWatching, replayEntries } from "./replays";
+import { type ReplayFile, type Simulation, type Simulations, type WarcraftGame, joinedReplay, keptName, openForWatching, replayEntries, warcraftGameOf, warcraftName } from "./replays";
 
 /** Lines as Warcraft writes a Preload file. */
 const preload = (lines: readonly string[]) => `function PreloadFiles takes nothing returns nothing\n${lines.map((line) => `\tcall Preload( "${line}" )\n`).join("")}endfunction\n`;
@@ -86,4 +87,13 @@ test("a replay from a version the client doesn't hold names that version; a kept
   const opened = await openForWatching(other, simulations({ "0123456789ab": kept }));
   expect("viewer" in opened).toBe(true);
   expect(await openForWatching(["hello"], simulations())).toEqual({ problem: `This file isn't a Smashcraft replay (not a repro: its first line isn't "wisp-repro 1").` });
+});
+
+test("a kept Warcraft game is listed under each match whose record it holds, in the same folder", () => {
+  const entry = (folder: string, serial: number, parts?: number) =>
+    ({ key: `${folder}/smashcraft-replay-${serial}.txt`, folder, name: `smashcraft-replay-${serial}.txt`, build: "b", version: "v", serial, frames: 1, modified: 1, ...(parts === undefined ? {} : { parts }) }) as const;
+  const game: WarcraftGame = { file: "warcraft-20261007-023258-abc.w3g", hash: "abc", started: 0, ended: 1, folder: "a", replays: "a/../BattleNet/1/Replays", records: ["smashcraft-match-2.txt", "smashcraft-match-3.txt"] };
+  const games = [game];
+  expect([entry("a", 2, 1), entry("a", 3, 4), entry("a", 4, 1), entry("b", 2, 1), entry("a", 2)].map((e) => warcraftGameOf(e, games)?.file)).toEqual([game.file, game.file, undefined, undefined, undefined]);
+  expect(warcraftName(new Date(2026, 9, 7, 10, 32, 58).getTime())).toBe("Smashcraft 2026-10-07 10.32");
 });

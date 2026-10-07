@@ -123,3 +123,17 @@ export async function openForWatching(lines: readonly string[], simulations: Sim
   const viewer = simulation.openReplay(lines);
   return typeof viewer === "string" ? { problem: `This replay can't be played: ${viewer}.` } : { viewer };
 }
+
+/** A Warcraft game the client kept (#159): Warcraft's own replay of a whole lobby session, every rematch included. */
+export type WarcraftGame = { file: string; hash: string; started: number; ended: number; folder: string; replays: string; records: string[] };
+
+/** The kept Warcraft game a replay's match was played in: the one whose records include the match's record. */
+export const warcraftGameOf = (entry: ReplayEntry, games: readonly WarcraftGame[]): WarcraftGame | undefined =>
+  entry.parts === undefined ? undefined : games.find((game) => game.folder === entry.folder && game.records.includes(`smashcraft-match-${entry.serial}.txt`));
+
+/** The name a kept game gets in Warcraft III's Replays menu, from when it ended (local time). */
+export function warcraftName(ended: number): string {
+  const at = new Date(ended);
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `Smashcraft ${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}.${two(at.getMinutes())}`;
+}

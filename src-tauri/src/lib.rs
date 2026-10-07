@@ -12,6 +12,7 @@ pub mod replays;
 pub mod settings;
 pub mod single;
 pub mod tray;
+pub mod warcraft_replays;
 
 use std::sync::{Arc, LazyLock, Mutex};
 
@@ -38,6 +39,7 @@ struct AppState {
     online: Arc<online::Online>,
     log_dir: Option<std::path::PathBuf>,
     kept: replays::Kept,
+    warcraft: warcraft_replays::Library,
 }
 
 impl AppState {
@@ -215,6 +217,16 @@ fn kept_sims(state: State<AppState>) -> Vec<String> {
 }
 
 #[tauri::command]
+fn warcraft_games(state: State<AppState>) -> Vec<warcraft_replays::WarcraftGame> {
+    state.warcraft.games()
+}
+
+#[tauri::command]
+fn watch_in_warcraft(state: State<AppState>, file: String, name: String) -> Result<String, String> {
+    state.warcraft.put_in_warcraft(&file, &name)
+}
+
+#[tauri::command]
 fn play_state() -> play::PlayState {
     PLAY.state()
 }
@@ -293,6 +305,7 @@ pub fn run() {
             let store = Store::new(&config);
             let history = records::History::new(&app.path().app_data_dir()?);
             let kept = replays::Kept::new(&app.path().app_data_dir()?);
+            let warcraft = warcraft_replays::Library::new(&app.path().app_data_dir()?);
             let settings = store.load();
             let shared = Shared::new(settings.controller_on);
             shared.greet(vec![ClientMessage::Profile(settings.profile)]);
@@ -337,7 +350,11 @@ pub fn run() {
                 let app = app.handle().clone();
                 move || single::listen(instance, move || show_window(&app))
             });
-            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), log_dir, kept });
+            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), log_dir, kept, warcraft });
+            std::thread::spawn({
+                let (app, library) = (app.handle().clone(), warcraft_replays::Library::new(&app.path().app_data_dir()?));
+                move || warcraft_replays::watch(library, move || record_folders_of(&app.state::<AppState>().settings.lock().unwrap()))
+            });
             if !hidden {
                 show_window(app.handle());
             }
@@ -378,6 +395,8 @@ pub fn run() {
             keep_sim,
             kept_sim,
             kept_sims,
+            warcraft_games,
+            watch_in_warcraft,
         ])
         .run(tauri::generate_context!())
         .expect("Smashcraft failed to start");
