@@ -8,7 +8,7 @@ export type OnlineView = {
   code: string | undefined;
   /** The steps to list: every line but the code's own. */
   steps: string[];
-  /** A waiting host may start before the opponent's ready line arrives. */
+  /** A waiting host starts once their opponent has joined. */
   canStartNow: boolean;
   busy: boolean;
   failed: boolean;

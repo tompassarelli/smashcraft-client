@@ -132,7 +132,7 @@ impl Online {
         Ok(())
     }
 
-    /// Asks a waiting host to start without waiting for the opponent's ready line.
+    /// Asks a waiting host to start once their opponent has joined.
     pub fn start_now(&self) -> bool {
         match self.stdin.lock().unwrap().as_mut() {
             Some(stdin) => stdin.write_all(b"start\n").and_then(|_| stdin.flush()).is_ok(),

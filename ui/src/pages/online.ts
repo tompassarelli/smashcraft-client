@@ -71,7 +71,7 @@ export function onlinePage(root: HTMLElement): () => void {
         {},
         h("div.code", {}, view.code),
         h("button", { type: "button", onclick: () => void navigator.clipboard?.writeText(view.code!) }, "Copy"),
-        view.canStartNow && h("button.primary", { type: "button", onclick: startNow, title: "Start without waiting for your opponent's ready signal" }, "Start now"),
+        view.canStartNow && h("button.primary", { type: "button", onclick: startNow, title: "Start once your opponent has joined" }, "Start now"),
       )
       : null;
     root.replaceChildren(
