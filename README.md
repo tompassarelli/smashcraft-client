@@ -96,14 +96,17 @@ rematch included (smashcraft:client/src-tauri/src/warcraft_replays.rs).
 
 ```sh
 (cd ts && bun install)   # the Replays page's simulation imports Wisp
-cd client/ui && bun install && bun test && bun run check && bun run build
+cd client/ui && bun install && bun test && bun test ../scripts && bun run check && bun run build
 cd ../src-tauri && nix-shell ../shell.nix --run 'cargo test --jobs 2'
 # Install for this user (NixOS): build, keep its libraries alive, write the
 # launcher, desktop entry and refresh an enabled autostart entry.
-cd .. && nix-shell shell.nix --run 'bun scripts/install.ts'
+cd .. && bun scripts/install.ts
 ```
 
-On NixOS put rustup's 1.96.1 toolchain on `PATH` first
+The install finds cargo itself (smashcraft:client/scripts/cargo.ts): `CARGO`,
+cargo on `PATH`, rustup's pinned toolchain in ~/.rustup, or a rustup in the
+nix store running that channel. Outside nix-shell it builds inside shell.nix.
+For `cargo test`, put rustup's 1.96.1 toolchain on `PATH` first
 (`$HOME/.rustup/toolchains/1.96.1-x86_64-unknown-linux-gnu/bin`). The install
 lives in ~/.local/share/smashcraft-build-inputs/smashcraft-client (one folder
 per commit, `current`, the `smashcraft` launcher and a `runtime` out-link), never

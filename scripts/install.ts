@@ -1,12 +1,16 @@
 // Installs the client for this Linux user, outside any system configuration:
 // ~/.local/share/smashcraft-build-inputs/smashcraft-client/<commit>/ holds the
 // build, `current` points at it, `smashcraft` is the launcher the desktop entry
-// and autostart run. Run from client/ inside its shell:
-//   nix-shell shell.nix --run "bun scripts/install.ts"
+// and autostart run. Run from client/, inside its shell or not:
+//   bun scripts/install.ts
+// Outside nix-shell, the release build runs inside shell.nix for its libraries.
+// Cargo comes from scripts/cargo.ts: PATH, the pinned rustup toolchain, or a
+// rustup from the nix store.
 import { $ } from "bun";
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync, symlinkSync, writeFileSync, chmodSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { findCargo, hostSearch } from "./cargo";
 
 const client = new URL("..", import.meta.url).pathname;
 const home = homedir();
@@ -17,7 +21,15 @@ const version = dirty ? `${commit}-dirty` : commit;
 
 await $`bun install --frozen-lockfile`.cwd(join(client, "ui"));
 await $`bun run build`.cwd(join(client, "ui"));
-await $`nice -n 10 cargo build --release --locked --jobs ${process.env.JOBS ?? "2"}`.cwd(join(client, "src-tauri"));
+const cargo = findCargo(hostSearch(client));
+if (cargo === undefined) throw new Error("no cargo: install rustup, or put cargo on PATH or in CARGO");
+const build = [...cargo.command, "build", "--release", "--locked", "--jobs", process.env.JOBS ?? "2"];
+const path = cargo.path === undefined ? process.env.PATH : `${cargo.path}:${process.env.PATH ?? ""}`;
+const inShell = process.env.IN_NIX_SHELL !== undefined || Bun.which("nix-shell") === null;
+const quoted = build.map((word) => `'${word.replaceAll("'", "'\\''")}'`).join(" ");
+const command = inShell ? ["nice", "-n", "10", ...build] : ["nix-shell", join(client, "shell.nix"), "--run", `nice -n 10 ${quoted}`];
+const built = Bun.spawnSync(command, { cwd: join(client, "src-tauri"), env: { ...process.env, PATH: path }, stdout: "inherit", stderr: "inherit" });
+if (built.exitCode !== 0) throw new Error(`cargo build failed (exit ${built.exitCode})`);
 
 // Keep the libraries the binary links (and the tray library it loads at run time) alive.
 const runtime = join(root, "runtime");
