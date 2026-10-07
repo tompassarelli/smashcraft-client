@@ -83,7 +83,7 @@ export function onlinePage(root: HTMLElement): () => void {
           "section.card",
           {},
           h("h2", {}, "Host a game"),
-          h("p.note", {}, "Open Warcraft III and sign in, then host. Give your opponent the code; the match starts when they join."),
+          h("p.note", {}, "Open Warcraft III and sign in, then host. Give your opponent the code; press Start now once they have joined."),
           codeCard ?? h("button.primary.online-go", { type: "button", onclick: host, disabled: !state.available || view.busy }, "Host"),
         ),
         h(
