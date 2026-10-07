@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { join } from "node:path";
 import { type CargoSearch, findCargo, pinnedChannel } from "./cargo";
 
 const search = (files: string[], onPath: Record<string, string> = {}, env: Record<string, string> = {}): CargoSearch => ({
@@ -14,13 +15,13 @@ test("cargo on PATH wins; CARGO wins over it", () => {
 });
 
 test("without cargo on PATH, the pinned toolchain rustup installed is used with its folder first on PATH", () => {
-  const bin = "/home/p/.rustup/toolchains/1.96.1-x86_64-unknown-linux-gnu/bin";
-  expect(findCargo(search([`${bin}/cargo`]))).toEqual({ command: [`${bin}/cargo`], path: bin });
+  const bin = join("/home/p", ".rustup", "toolchains", "1.96.1-x86_64-unknown-linux-gnu", "bin");
+  expect(findCargo(search([join(bin, "cargo")]))).toEqual({ command: [join(bin, "cargo")], path: bin });
 });
 
 test("with only a rustup in the nix store, it runs the pinned channel's cargo", () => {
-  const rustup = "/nix/store/90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0/bin/rustup";
-  expect(findCargo(search([rustup, "/nix/store/hjakvji1fin5darwqm63fpr5skhff071-rustup-1.29.0-vendor.drv"]))).toEqual({ command: [rustup, "run", "1.96.1", "cargo"] });
+  const rustup = join("/nix/store", "90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0", "bin/rustup");
+  expect(findCargo(search([`/nix/store/90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0/bin/rustup`, rustup, "/nix/store/hjakvji1fin5darwqm63fpr5skhff071-rustup-1.29.0-vendor.drv"]))).toEqual({ command: [rustup, "run", "1.96.1", "cargo"] });
   expect(findCargo(search([]))).toBeUndefined();
 });
 
