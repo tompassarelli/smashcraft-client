@@ -42,6 +42,10 @@ export const api = {
   keepSim: (version: string, code: string) => invoke<void>("keep_sim", { version, code }),
   keptSim: (version: string) => invoke<string | null>("kept_sim", { version }),
   keptSims: () => invoke<string[]>("kept_sims"),
+  mapVersions: () => invoke<string[]>("map_versions"),
+  mapReplayOpen: (version: string, replay: string, viewer: string) => invoke<string>("map_replay_open", { version, replay, viewer }),
+  mapReplayStep: (id: number, seek: boolean, frames: number) => invoke<string>("map_replay_step", { id, seek, frames }),
+  mapReplayClose: (id: number) => void invoke<void>("map_replay_close", { id }).catch(() => undefined),
   warcraftGames: () => invoke<WarcraftGame[]>("warcraft_games"),
   watchInWarcraft: (file: string, name: string) => invoke<string>("watch_in_warcraft", { file, name }),
   onController: (handler: (state: ControllerState) => void) =>

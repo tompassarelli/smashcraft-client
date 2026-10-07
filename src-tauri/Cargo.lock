@@ -2897,6 +2897,8 @@ dependencies = [
 name = "smashcraft-client"
 version = "0.1.0"
 dependencies = [
+ "cc",
+ "flate2",
  "serde",
  "serde_json",
  "sha2",

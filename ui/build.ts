@@ -2,6 +2,7 @@
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SOURCE_STAMP_TEXT, sourceVersion } from "../../ts/scripts/sourceVersion";
+import { buildViewerLua } from "../../ts/scripts/viewerLua";
 
 const here = import.meta.dir;
 const dist = join(here, "dist");
@@ -22,7 +23,7 @@ if (!result.success) {
 // version it has played.
 const ts = join(here, "../../ts");
 const sim = await Bun.build({
-  entrypoints: [join(ts, "src/game/replay/viewer.ts")],
+  entrypoints: [join(ts, "src/game/replay/viewerBundle.ts")],
   outdir: dist,
   naming: "sim.js",
   target: "browser",
@@ -37,5 +38,7 @@ const simFile = join(dist, "sim.js");
 const simCode = readFileSync(simFile, "utf8");
 if (!simCode.includes(SOURCE_STAMP_TEXT)) throw new Error("sim.js holds no source stamp to replace");
 writeFileSync(simFile, simCode.replaceAll(SOURCE_STAMP_TEXT, JSON.stringify(sourceVersion(ts))));
+// The viewer's modules for playing a replay in its own map's simulation (ts/scripts/viewerLua.ts).
+writeFileSync(join(dist, "viewer.lua"), buildViewerLua(ts));
 cpSync(join(here, "index.html"), join(dist, "index.html"));
 cpSync(join(here, "styles.css"), join(dist, "styles.css"));

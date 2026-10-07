@@ -3,7 +3,7 @@ import { drawScene } from "../draw";
 import { Playback, clock } from "../playback";
 import { duration } from "../records";
 import {
-  type ReplayEntry, type Simulation, type Simulations, type WarcraftGame, joinedReplay, keptName, openForWatching, replayEntries, versionName,
+  type ReplayEntry, type ReplayScene, type Simulation, type Simulations, type WarcraftGame, type Watch, joinedReplay, keptName, openForWatching, replayEntries, versionName,
   warcraftGameOf, warcraftName,
 } from "../replays";
 import { api } from "../tauri";
@@ -38,10 +38,56 @@ function simulations(): Simulations {
         URL.revokeObjectURL(url);
       }
     },
+    map: (version, lines) => mapWatch(version, lines),
     held: async () => {
-      const versions = new Set([(await (own ??= loadOwn())).sourceVersion(), ...(await api.keptSims())]);
+      const versions = new Set([(await (own ??= loadOwn())).sourceVersion(), ...(await api.keptSims()), ...(await api.mapVersions().catch(() => []))]);
       return [...versions];
     },
+  };
+}
+
+let viewerLua: Promise<string> | undefined;
+
+type Stepped = { frame: number; ended: boolean; scene: ReplayScene } | { problem: string };
+
+/** The replay played in its version's own map, in the app (smashcraft:client/src-tauri/src/mapsim.rs). */
+async function mapWatch(version: string, lines: readonly string[]): Promise<Watch | string | undefined> {
+  const viewer = await (viewerLua ??= fetch(new URL("./viewer.lua", location.href).href).then((response) => response.text()));
+  let answer: string;
+  try {
+    answer = await api.mapReplayOpen(version, `${lines.join("\n")}\n`, viewer);
+  } catch (error) {
+    if (String(error).startsWith("no map of version")) return undefined;
+    return String(error);
+  }
+  const { id, opened } = JSON.parse(answer) as { id: number; opened: { first: number; last: number; frame: number } | { problem: string } };
+  if ("problem" in opened) {
+    api.mapReplayClose(id);
+    return opened.problem;
+  }
+  const step = async (seek: boolean, frames: number) => {
+    const stepped = JSON.parse(await api.mapReplayStep(id, seek, frames)) as Stepped;
+    if ("problem" in stepped) throw new Error(stepped.problem);
+    return stepped;
+  };
+  let shown = await step(true, opened.first);
+  return {
+    first: opened.first,
+    last: opened.last,
+    get frame() {
+      return shown.frame;
+    },
+    get scene() {
+      return shown.scene;
+    },
+    async advance(frames) {
+      shown = await step(false, frames);
+      return !shown.ended;
+    },
+    async seek(frame) {
+      shown = await step(true, frame);
+    },
+    close: () => api.mapReplayClose(id),
   };
 }
 
@@ -71,10 +117,10 @@ function viewerCard() {
   let last = 0;
   const render = () => {
     if (playback === undefined) return;
-    const { viewer } = playback;
-    drawScene(canvas, viewer.scene(), names);
-    seek.value = String(viewer.frame);
-    label.textContent = `${clock(viewer.frame - viewer.first)} / ${clock(viewer.last - viewer.first)} · frame ${viewer.frame}`;
+    const { watch } = playback;
+    drawScene(canvas, watch.scene, names);
+    seek.value = String(watch.frame);
+    label.textContent = `${clock(watch.frame - watch.first)} / ${clock(watch.last - watch.first)} · frame ${watch.frame}`;
     playButton.textContent = playback.playing ? "Pause" : "Play";
   };
   const animate = (now: number) => {
@@ -82,7 +128,7 @@ function viewerCard() {
     if (playback === undefined || !playback.playing) return;
     const elapsed = last === 0 ? 0 : now - last;
     last = now;
-    playback.tick(elapsed);
+    void playback.tick(elapsed).then((changed) => changed && render());
     render();
     frameRequest = requestAnimationFrame(animate);
   };
@@ -91,36 +137,27 @@ function viewerCard() {
     if (frameRequest === 0 && playback?.playing) frameRequest = requestAnimationFrame(animate);
     render();
   };
-  playButton.addEventListener("click", () => {
-    playback?.toggle();
-    loop();
-  });
-  back.addEventListener("click", () => {
-    playback?.stepBack();
-    render();
-  });
-  forward.addEventListener("click", () => {
-    playback?.stepForward();
-    render();
-  });
-  seek.addEventListener("input", () => {
-    playback?.seek(Number(seek.value));
-    render();
-  });
+  const act = (action: (shown: Playback) => Promise<void>) => {
+    if (playback !== undefined) void action(playback).then(loop);
+  };
+  playButton.addEventListener("click", () => act((shown) => shown.toggle()));
+  back.addEventListener("click", () => act((shown) => shown.stepBack()));
+  forward.addEventListener("click", () => act((shown) => shown.stepForward()));
+  seek.addEventListener("input", () => act((shown) => shown.seek(Number(seek.value))));
   const keys = (event: KeyboardEvent) => {
     if (playback === undefined || el.hidden || event.target instanceof HTMLInputElement && event.target.type === "text") return;
-    if (event.key === " ") playback.toggle();
-    else if (event.key === "ArrowLeft") playback.stepBack();
-    else if (event.key === "ArrowRight") playback.stepForward();
+    if (event.key === " ") act((shown) => shown.toggle());
+    else if (event.key === "ArrowLeft") act((shown) => shown.stepBack());
+    else if (event.key === "ArrowRight") act((shown) => shown.stepForward());
     else return;
     event.preventDefault();
-    loop();
   };
   window.addEventListener("keydown", keys);
   return {
     el,
     show(text: string, opened: Playback | undefined, fighterNames: string[], message?: string) {
       playback?.pause();
+      playback?.watch.close();
       playback = opened;
       names = fighterNames;
       heading.textContent = text;
@@ -129,14 +166,15 @@ function viewerCard() {
       problem.textContent = message ?? "";
       for (const part of [canvas, back, playButton, forward, seek, label]) part.hidden = opened === undefined;
       if (opened !== undefined) {
-        seek.min = String(opened.viewer.first);
-        seek.max = String(opened.viewer.last);
+        seek.min = String(opened.watch.first);
+        seek.max = String(opened.watch.last);
       }
       loop();
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     },
     stop() {
       playback?.pause();
+      playback?.watch.close();
       cancelAnimationFrame(frameRequest);
       window.removeEventListener("keydown", keys);
     },
@@ -161,7 +199,7 @@ export function replaysPage(root: HTMLElement): () => void {
     const opened = await openForWatching(lines, sims);
     if (!live) return;
     if ("problem" in opened) viewer.show(heading, undefined, names, opened.problem);
-    else viewer.show(heading, new Playback(opened.viewer), names);
+    else viewer.show(heading, new Playback(opened.watch), names);
   };
 
   const replayLines = async (entry: ReplayEntry, text: string) =>

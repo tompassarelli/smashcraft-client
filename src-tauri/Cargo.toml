@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.96.1"
 publish = false
 license = "MIT"
-description = "Smashcraft: controller, play and (later) history, stats, replays and online"
+description = "Smashcraft: controller, play, history, stats, replays and online"
 
 [lib]
 name = "smashcraft_client"
@@ -17,6 +17,7 @@ path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+cc = "1"
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
@@ -24,6 +25,7 @@ tauri-plugin-autostart = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
+flate2 = "1"
 wc3-controller-model = { path = "../../companion/model" }
 
 [profile.release]

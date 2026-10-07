@@ -5,6 +5,9 @@
 
 pub mod autostart;
 pub mod link;
+pub mod lua32;
+pub mod mapsim;
+pub mod mpq;
 pub mod online;
 pub mod play;
 pub mod records;
@@ -39,6 +42,7 @@ struct AppState {
     online: Arc<online::Online>,
     log_dir: Option<std::path::PathBuf>,
     kept: replays::Kept,
+    mapsims: mapsim::MapSims,
     warcraft: warcraft_replays::Library,
 }
 
@@ -211,6 +215,33 @@ fn kept_sim(state: State<AppState>, version: String) -> Option<String> {
     state.kept.sim(&version)
 }
 
+fn maps_of(state: &AppState) -> Vec<std::path::PathBuf> {
+    mapsim::maps_folders(&record_folders_of(&state.settings.lock().unwrap()))
+}
+
+/// Versions whose maps are in the Maps folders beside the record folders, or were read before.
+#[tauri::command]
+async fn map_versions(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    Ok(state.mapsims.scan(&maps_of(&state)))
+}
+
+/// Opens a joined replay in its version's map: {"id", "opened"} with the viewer driver's answer.
+#[tauri::command]
+async fn map_replay_open(state: State<'_, AppState>, version: String, replay: String, viewer: String) -> Result<String, String> {
+    let (id, opened) = state.mapsims.open(&maps_of(&state), &version, &replay, &viewer)?;
+    Ok(format!("{{\"id\":{id},\"opened\":{opened}}}"))
+}
+
+#[tauri::command]
+async fn map_replay_step(state: State<'_, AppState>, id: u32, seek: bool, frames: i64) -> Result<String, String> {
+    state.mapsims.step(id, seek, frames)
+}
+
+#[tauri::command]
+fn map_replay_close(state: State<AppState>, id: u32) {
+    state.mapsims.close(id);
+}
+
 #[tauri::command]
 fn kept_sims(state: State<AppState>) -> Vec<String> {
     state.kept.sims()
@@ -305,6 +336,7 @@ pub fn run() {
             let store = Store::new(&config);
             let history = records::History::new(&app.path().app_data_dir()?);
             let kept = replays::Kept::new(&app.path().app_data_dir()?);
+            let mapsims = mapsim::MapSims::new(&app.path().app_data_dir()?);
             let warcraft = warcraft_replays::Library::new(&app.path().app_data_dir()?);
             let settings = store.load();
             let shared = Shared::new(settings.controller_on);
@@ -350,7 +382,7 @@ pub fn run() {
                 let app = app.handle().clone();
                 move || single::listen(instance, move || show_window(&app))
             });
-            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), log_dir, kept, warcraft });
+            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), log_dir, kept, mapsims, warcraft });
             std::thread::spawn({
                 let (app, library) = (app.handle().clone(), warcraft_replays::Library::new(&app.path().app_data_dir()?));
                 move || warcraft_replays::watch(library, move || record_folders_of(&app.state::<AppState>().settings.lock().unwrap()))
@@ -395,6 +427,10 @@ pub fn run() {
             keep_sim,
             kept_sim,
             kept_sims,
+            map_versions,
+            map_replay_open,
+            map_replay_step,
+            map_replay_close,
             warcraft_games,
             watch_in_warcraft,
         ])

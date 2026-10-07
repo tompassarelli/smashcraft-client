@@ -72,10 +72,19 @@ The viewer draws the replayed match (each fighter's hurt volumes, active
 strikes and projectiles, damage and stocks) with play and pause (Space), a
 frame back or forward (← →) and a seek bar. It runs the simulation of the
 version that recorded the replay. The page build makes `sim.js` from
-smashcraft:ts/src/game/replay/viewer.ts, stamped with its source version
+smashcraft:ts/src/game/replay/viewerBundle.ts, stamped with its source version
 (smashcraft:ts/scripts/sourceVersion.ts), and the client keeps a copy in
-`sims/` for every version it runs. A replay from a version it doesn't hold
-names that version. Joining and opening are in smashcraft:client/ui/src/replays.ts
+`sims/` for every version it runs.
+
+For any other version the client looks in the Maps folder beside each
+CustomMapData folder (Download included) for a Smashcraft map stamped with
+it. It reads that map's `war3map.lua` (smashcraft:client/src-tauri/src/mpq.rs),
+keeps it as `sims/<version>.lua`, and plays the replay in the map's own
+simulation: Lua 5.3.6 built with 32-bit numbers, as Warcraft's
+(smashcraft:client/src-tauri/lua-5.3.6), with `viewer.lua`'s modules added
+(smashcraft:client/src-tauri/src/mapsim.rs and mapsim.lua;
+smashcraft:ts/src/game/replay/viewerDriver.ts). A replay whose version has
+neither names it and asks for its map. Joining and opening are in smashcraft:client/ui/src/replays.ts
 and smashcraft:client/ui/src/playback.ts. The Rust side
 (smashcraft:client/src-tauri/src/replays.rs) only reads and keeps files.
 

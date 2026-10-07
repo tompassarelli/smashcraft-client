@@ -5,7 +5,7 @@
 // (smashcraft:ts/src/game/replay/viewer.ts, VIEWER_API 1): the client ships
 // its own and keeps every one it has played.
 import { type ReplayHeader, joinReplay, parseReplayHeader, parseReplayPart } from "../../../ts/src/game/replay/replayFormat";
-import type { ReplayViewer } from "../../../ts/src/game/replay/viewer";
+import type { ReplayScene, ReplayViewer } from "../../../ts/src/game/replay/viewer";
 import { type MatchRecord, type RecordFile, parseRecord, preloadLines } from "./records";
 
 export type { ReplayScene, ReplayViewer } from "../../../ts/src/game/replay/viewer";
@@ -95,15 +95,56 @@ export type Simulation = {
   openReplay(lines: readonly string[]): ReplayViewer | string;
 };
 
-/** Where the client finds a version's simulation: its own, or one it kept. */
+/**
+ * A replay being watched: the frame shown and its scene, a run of frames
+ * forward and a seek. Async, as a replay may play in its map's simulation in
+ * the app (smashcraft:client/src-tauri/src/mapsim.rs).
+ */
+export interface Watch {
+  readonly first: number;
+  readonly last: number;
+  readonly frame: number;
+  readonly scene: ReplayScene;
+  /** Runs up to `frames` frames; false once the replay ended or a frame couldn't run. */
+  advance(frames: number): Promise<boolean>;
+  /** Shows the state after `frame`, clamped to the replay. */
+  seek(frame: number): Promise<void>;
+  close(): void;
+}
+
+/** A viewer from a simulation bundle, watched. */
+export function bundleWatch(viewer: ReplayViewer): Watch {
+  return {
+    first: viewer.first,
+    last: viewer.last,
+    get frame() {
+      return viewer.frame;
+    },
+    get scene() {
+      return viewer.scene();
+    },
+    async advance(frames) {
+      for (let step = 0; step < frames; step++) if (!viewer.step()) return false;
+      return viewer.frame < viewer.last;
+    },
+    async seek(frame) {
+      viewer.seek(frame);
+    },
+    close() {},
+  };
+}
+
+/** Where the client finds a version's simulation: its own, one it kept, or the map of that version in a Maps folder. */
 export type Simulations = {
   own(): Promise<Simulation>;
   kept(version: string): Promise<Simulation | undefined>;
-  /** Versions the client can play: its own and every one kept. */
+  /** The replay opened in its version's map; undefined when no map of that version was found, a string when it can't play. */
+  map(version: string, lines: readonly string[]): Promise<Watch | string | undefined>;
+  /** Versions the client can play: its own, every one kept and every map found. */
   held(): Promise<string[]>;
 };
 
-export type Opened = { viewer: ReplayViewer } | { problem: string };
+export type Opened = { watch: Watch } | { problem: string };
 
 /** The words naming a version a player can tell apart. */
 export const versionName = (version: string, build: string) => `Smashcraft ${build} (version ${version})`;
@@ -114,14 +155,17 @@ export async function openForWatching(lines: readonly string[], simulations: Sim
   if (typeof header === "string") return { problem: `This file isn't a Smashcraft replay (${header}).` };
   const own = await simulations.own();
   const simulation = own.sourceVersion() === header.version ? own : await simulations.kept(header.version);
-  if (simulation === undefined) {
-    const held = await simulations.held();
-    return {
-      problem: `This replay was recorded on ${versionName(header.version, header.repro.build)}. This client can play replays from version ${held.join(", ") || "none"}; open it in a client that has played ${header.version}.`,
-    };
+  if (simulation !== undefined) {
+    const viewer = simulation.openReplay(lines);
+    return typeof viewer === "string" ? { problem: `This replay can't be played: ${viewer}.` } : { watch: bundleWatch(viewer) };
   }
-  const viewer = simulation.openReplay(lines);
-  return typeof viewer === "string" ? { problem: `This replay can't be played: ${viewer}.` } : { viewer };
+  const watch = await simulations.map(header.version, lines);
+  if (typeof watch === "string") return { problem: `This replay can't be played: ${watch}.` };
+  if (watch !== undefined) return { watch };
+  const held = await simulations.held();
+  return {
+    problem: `This replay was recorded on ${versionName(header.version, header.repro.build)}. This client can play replays from version ${held.join(", ") || "none"}. To watch it, put that version's map in your Warcraft III Maps folder.`,
+  };
 }
 
 /** A Warcraft game the client kept (#159): Warcraft's own replay of a whole lobby session, every rematch included. */
