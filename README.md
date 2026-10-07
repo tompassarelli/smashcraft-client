@@ -8,7 +8,8 @@ smashcraft:client/ui, embedded into the binary at build time.
 
 ## Controller support
 
-The client never reads the pad itself. It connects to the Warcraft III
+Controller support is optional: Smashcraft plays on the keyboard alone, and
+the service turns a pad into the same keys. The client never reads the pad itself. It connects to the Warcraft III
 Controller service (smashcraft:companion) on 127.0.0.1:47631 and shows its
 status, live input and bindings; the messages and plain-language status rows
 come from smashcraft:companion/model. When nothing answers and the player has
