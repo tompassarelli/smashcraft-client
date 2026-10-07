@@ -14,6 +14,8 @@ pub struct Settings {
     pub any_map_bindings: Vec<Binding>,
     /// The CustomMapData folders match records are read from; the ones found on this computer until the player sets them.
     pub record_folders: Option<Vec<String>>,
+    /// Whether the player agreed to add Smashcraft's page to Warcraft III's menus (online play); none until asked.
+    pub menu_page: Option<bool>,
 }
 
 pub struct Store {
@@ -58,6 +60,7 @@ mod tests {
             profile: ProfileChoice::AnyMap,
             any_map_bindings: wc3_controller_model::any_map_bindings(),
             record_folders: Some(vec!["/games/CustomMapData".into()]),
+            menu_page: Some(true),
         };
         store.save(&settings).unwrap();
         assert_eq!(store.load(), settings);

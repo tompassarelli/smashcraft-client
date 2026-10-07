@@ -1,10 +1,11 @@
 //! The Smashcraft client: a window with routed pages (Controller, History and
-//! Stats now; replays and online later) and a tray light. Controller support comes
+//! Stats and Online now; replays later) and a tray light. Controller support comes
 //! from the Warcraft III Controller service over its local interface; the
 //! client starts the bundled service only when none answers.
 
 pub mod autostart;
 pub mod link;
+pub mod online;
 pub mod play;
 pub mod records;
 pub mod settings;
@@ -33,6 +34,8 @@ struct AppState {
     store: Store,
     settings: Mutex<Settings>,
     history: records::History,
+    online: Arc<online::Online>,
+    log_dir: Option<std::path::PathBuf>,
 }
 
 impl AppState {
@@ -191,6 +194,60 @@ fn play(app: AppHandle) -> Result<play::PlayState, String> {
     Ok(PLAY.state())
 }
 
+#[tauri::command]
+fn online_state(state: State<AppState>) -> online::OnlineState {
+    state.online.state()
+}
+
+/// The player's answer to adding Smashcraft's page to Warcraft III's menus: none until asked.
+#[tauri::command]
+fn menu_page_choice(state: State<AppState>) -> Option<bool> {
+    state.settings.lock().unwrap().menu_page
+}
+
+#[tauri::command]
+fn decline_menu_page(state: State<AppState>) -> Result<(), String> {
+    state.update(|s| s.menu_page = Some(false))
+}
+
+fn start_online(app: AppHandle, state: &AppState, mode: online::Mode, code: Option<&str>) -> Result<online::OnlineState, String> {
+    let dir = play::play_dir().ok_or("Online play isn't set up on this computer yet.")?;
+    let repair = state.settings.lock().unwrap().menu_page == Some(true);
+    let bun = std::env::var_os("BUN").unwrap_or_else(|| "bun".into());
+    let log = state.log_dir.as_ref().map(|dir| dir.join("online.log"));
+    state.online.start(mode, bun, online::online_args(mode, code, repair), &dir, log, move |snapshot| {
+        let _ = app.emit("online", snapshot);
+    })?;
+    Ok(state.online.state())
+}
+
+/// The player agreed: remember it and set up Warcraft III's menus.
+#[tauri::command]
+fn online_setup(app: AppHandle, state: State<AppState>) -> Result<online::OnlineState, String> {
+    state.update(|s| s.menu_page = Some(true))?;
+    start_online(app, &state, online::Mode::Setup, None)
+}
+
+#[tauri::command]
+fn online_host(app: AppHandle, state: State<AppState>) -> Result<online::OnlineState, String> {
+    start_online(app, &state, online::Mode::Host, None)
+}
+
+#[tauri::command]
+fn online_join(app: AppHandle, state: State<AppState>, code: String) -> Result<online::OnlineState, String> {
+    start_online(app, &state, online::Mode::Join, Some(&code))
+}
+
+#[tauri::command]
+fn online_start_now(state: State<AppState>) -> bool {
+    state.online.start_now()
+}
+
+#[tauri::command]
+fn online_cancel(state: State<AppState>) {
+    state.online.cancel()
+}
+
 pub fn run() {
     let hidden = std::env::args().any(|arg| arg == "--hidden");
     let single::Claim::First(instance) = single::claim(single::client_port()) else {
@@ -227,10 +284,10 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            let log = app.path().app_log_dir().ok().map(|dir| {
-                let _ = std::fs::create_dir_all(&dir);
-                dir.join("controller.log")
+            let log_dir = app.path().app_log_dir().ok().inspect(|dir| {
+                let _ = std::fs::create_dir_all(dir);
             });
+            let log = log_dir.as_ref().map(|dir| dir.join("controller.log"));
             let pending = Arc::new(Mutex::new(None));
             std::thread::spawn({
                 let (app, pending) = (app.handle().clone(), pending.clone());
@@ -246,7 +303,7 @@ pub fn run() {
                 let app = app.handle().clone();
                 move || single::listen(instance, move || show_window(&app))
             });
-            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history });
+            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), log_dir });
             if !hidden {
                 show_window(app.handle());
             }
@@ -273,6 +330,14 @@ pub fn run() {
             read_records,
             history,
             save_history,
+            online_state,
+            menu_page_choice,
+            decline_menu_page,
+            online_setup,
+            online_host,
+            online_join,
+            online_start_now,
+            online_cancel,
         ])
         .run(tauri::generate_context!())
         .expect("Smashcraft failed to start");

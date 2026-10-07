@@ -43,6 +43,8 @@ export type Binding = { control: Control; action: string; press: Press };
 export type Bindings = { smashcraft: Binding[]; smashcraft_menus: Binding[]; any_map: Binding[]; any_map_defaults: Binding[]; profile: ProfileChoice };
 
 export type PlayState = { available: boolean; running: boolean; lines: string[]; finished: boolean | null };
+export type OnlineMode = "setup" | "host" | "join";
+export type OnlineState = PlayState & { mode: OnlineMode | null };
 
 export const PROFILE_CHOICES: { choice: ProfileChoice; label: string; hint: string }[] = [
   { choice: "auto", label: "Automatic", hint: "Smashcraft controls in Smashcraft, your own keys everywhere else" },

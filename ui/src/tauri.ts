@@ -1,5 +1,5 @@
 // The Rust side's commands and events (app.withGlobalTauri exposes window.__TAURI__).
-import type { Bindings, Binding, ControllerState, InputView, PlayState, ProfileChoice } from "./model";
+import type { Bindings, Binding, ControllerState, InputView, OnlineState, PlayState, ProfileChoice } from "./model";
 import type { HistoryStore, RecordFile } from "./records";
 
 type TauriGlobal = {
@@ -26,6 +26,15 @@ export const api = {
   readRecords: () => invoke<RecordFile[]>("read_records"),
   history: () => invoke<unknown>("history"),
   saveHistory: (history: HistoryStore) => invoke<void>("save_history", { history }),
+  onlineState: () => invoke<OnlineState>("online_state"),
+  menuPageChoice: () => invoke<boolean | null>("menu_page_choice"),
+  declineMenuPage: () => invoke<void>("decline_menu_page"),
+  onlineSetup: () => invoke<OnlineState>("online_setup"),
+  onlineHost: () => invoke<OnlineState>("online_host"),
+  onlineJoin: (code: string) => invoke<OnlineState>("online_join", { code }),
+  onlineStartNow: () => invoke<boolean>("online_start_now"),
+  onlineCancel: () => invoke<void>("online_cancel"),
+  onOnline: (handler: (state: OnlineState) => void) => tauri().event.listen<OnlineState>("online", (e) => handler(e.payload)),
   onController: (handler: (state: ControllerState) => void) =>
     tauri().event.listen<ControllerState>("controller", (e) => handler(e.payload)),
   onInput: (handler: (input: InputView) => void) => tauri().event.listen<InputView>("input", (e) => handler(e.payload)),

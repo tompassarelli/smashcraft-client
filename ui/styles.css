@@ -112,3 +112,12 @@ table.stats { width: 100%; border-collapse: collapse; font-variant-numeric: tabu
 .stats th { text-align: left; font-weight: 500; color: var(--muted); padding: 6px 10px 6px 0; }
 .stats td { padding: 6px 10px 6px 0; }
 .stats tbody tr { border-top: 1px solid var(--line); }
+
+.online-actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+.online-actions button.quiet { margin-top: 0; }
+.online-go { margin-top: 12px; }
+.online-join { display: flex; gap: 8px; margin-top: 12px; }
+.code-input { flex: 1; font: 600 18px/1 ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.code-box { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.code { font: 700 28px/1 ui-monospace, monospace; letter-spacing: 0.14em; color: var(--gold); padding: 8px 14px; border-radius: 8px; background: var(--panel-2); user-select: all; }
+.online-failed { border-color: var(--red); }

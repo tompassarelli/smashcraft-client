@@ -1,7 +1,7 @@
 # Smashcraft client
 
 The desktop app players open: a window with routed pages (Controller,
-History and Stats now; replays and online slot into `ROUTES` in
+History, Stats and Online now; replays slot into `ROUTES` in
 smashcraft:client/ui/src/main.ts) and a tray light. Rust backend in
 smashcraft:client/src-tauri (Tauri v2), pages in TypeScript built with Bun in
 smashcraft:client/ui, embedded into the binary at build time.
@@ -43,6 +43,19 @@ ingest and stats are in smashcraft:client/ui/src/records.ts and
 smashcraft:client/ui/src/stats.ts; the Rust side
 (smashcraft:client/src-tauri/src/records.rs) only reads folders and keeps the
 store. Fixture folders: smashcraft:client/ui/test/fixtures/records/.
+
+## Online
+
+The Online page hosts a private Battle.net game and shows its join code, or
+joins one by code (smashcraft:docs/design/client.md, "Direct play"). It runs
+`bun wisp online host` or `join CODE` from the same checkout as Play and
+shows their output lines; their error output goes to `online.log` in the
+client's log folder. Start now sends a waiting host `start` on its input, and
+Cancel stops the run (a hosted game stays open until the player leaves it).
+The first visit asks once to add Smashcraft's page to Warcraft III's menus
+(`online setup`); the answer is remembered in the client's settings. The
+runner is smashcraft:client/src-tauri/src/online.rs and the page
+smashcraft:client/ui/src/pages/online.ts.
 
 ## Build, test, install
 
