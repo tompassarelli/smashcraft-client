@@ -52,9 +52,14 @@ pub fn read_record_files(folders: &[String]) -> Vec<RecordFile> {
     files
 }
 
+/// `relative`'s `/`-separated parts below `base`, with this system's separator.
+fn below(base: &Path, relative: &str) -> PathBuf {
+    relative.split('/').fold(base.to_path_buf(), |path, part| path.join(part))
+}
+
 /// Warcraft III's CustomMapData below a Documents folder.
 fn custom_map_data(documents: &Path) -> PathBuf {
-    documents.join("Warcraft III").join("CustomMapData")
+    below(documents, "Warcraft III/CustomMapData")
 }
 
 /// The subfolders of `dir`, sorted; none when it can't be read.
@@ -68,7 +73,7 @@ fn subfolders(dir: &Path) -> Vec<PathBuf> {
 
 /// Every Wine user's Documents in a Wine prefix.
 fn wine_documents(prefix: &Path) -> Vec<PathBuf> {
-    subfolders(&prefix.join("drive_c").join("users")).into_iter().map(|user| user.join("Documents")).collect()
+    subfolders(&below(prefix, "drive_c/users")).into_iter().map(|user| user.join("Documents")).collect()
 }
 
 /// Warcraft III's CustomMapData folders that exist: under `home`'s Documents
@@ -76,7 +81,7 @@ fn wine_documents(prefix: &Path) -> Vec<PathBuf> {
 /// prefix, ~/.wine and `wine_prefix`. Only reads; nothing is written.
 pub fn find_folders(home: &Path, wine_prefix: Option<&Path>) -> Vec<String> {
     let mut documents = vec![home.join("Documents")];
-    for prefix in subfolders(&home.join(".local/share/Steam/steamapps/compatdata")) {
+    for prefix in subfolders(&below(home, ".local/share/Steam/steamapps/compatdata")) {
         documents.extend(wine_documents(&prefix.join("pfx")));
     }
     documents.extend(wine_documents(&home.join(".wine")));
@@ -154,17 +159,17 @@ mod tests {
         let home = std::env::temp_dir().join(format!("smashcraft-find-{}", std::process::id()));
         let other = home.join("elsewhere");
         let made = [
-            home.join("Documents/Warcraft III/CustomMapData"),
-            home.join(".local/share/Steam/steamapps/compatdata/3516115571/pfx/drive_c/users/steamuser/Documents/Warcraft III/CustomMapData"),
-            home.join(".wine/drive_c/users/tom/Documents/Warcraft III/CustomMapData"),
-            other.join("drive_c/users/tom/Documents/Warcraft III/CustomMapData"),
+            below(&home, "Documents/Warcraft III/CustomMapData"),
+            below(&home, ".local/share/Steam/steamapps/compatdata/3516115571/pfx/drive_c/users/steamuser/Documents/Warcraft III/CustomMapData"),
+            below(&home, ".wine/drive_c/users/tom/Documents/Warcraft III/CustomMapData"),
+            below(&other, "drive_c/users/tom/Documents/Warcraft III/CustomMapData"),
         ];
         for folder in &made {
             std::fs::create_dir_all(folder).unwrap();
         }
         // A Proton prefix without Warcraft III, and one whose Documents has no CustomMapData.
-        std::fs::create_dir_all(home.join(".local/share/Steam/steamapps/compatdata/228980/pfx/drive_c/users/steamuser/Documents")).unwrap();
-        std::fs::create_dir_all(home.join(".local/share/Steam/steamapps/compatdata/1/pfx/drive_c/users/steamuser/Documents/Warcraft III")).unwrap();
+        std::fs::create_dir_all(below(&home, ".local/share/Steam/steamapps/compatdata/228980/pfx/drive_c/users/steamuser/Documents")).unwrap();
+        std::fs::create_dir_all(below(&home, ".local/share/Steam/steamapps/compatdata/1/pfx/drive_c/users/steamuser/Documents/Warcraft III")).unwrap();
         let expected: Vec<String> = made.iter().map(|f| f.to_string_lossy().into_owned()).collect();
         assert_eq!(find_folders(&home, Some(&other)), expected);
         assert_eq!(find_folders(&home, None), expected[..3].to_vec());
