@@ -3,6 +3,8 @@
 export type Light = "green" | "amber" | "red" | "off";
 export type Link = "off" | "starting" | "connected";
 export type Profile = "smashcraft" | "any_map" | "off";
+export type PadPreset = "standard" | "z-jump";
+export type PadPresetBindings = { preset: PadPreset; label: string; bindings: Binding[] };
 export type ProfileChoice = "auto" | Profile;
 
 export type Row = { label: string; text: string; light: Light };
@@ -40,7 +42,7 @@ export type Control =
 
 export type Press = { key: string } | "left_click" | "right_click" | "pointer";
 export type Binding = { control: Control; action: string; press: Press };
-export type Bindings = { smashcraft: Binding[]; smashcraft_menus: Binding[]; any_map: Binding[]; any_map_defaults: Binding[]; profile: ProfileChoice };
+export type Bindings = { smashcraft: Binding[]; smashcraft_menus: Binding[]; any_map: Binding[]; any_map_defaults: Binding[]; profile: ProfileChoice; pad_preset: PadPreset; pad_presets: PadPresetBindings[] };
 
 export type PlayState = { available: boolean; running: boolean; lines: string[]; finished: boolean | null };
 export type OnlineMode = "setup" | "host" | "join";
@@ -61,6 +63,8 @@ const CONTROL_LABEL: Record<Control, string> = {
   left_up: "Left stick up", left_down: "Left stick down", left_left: "Left stick left", left_right: "Left stick right",
   right_up: "Right stick up", right_down: "Right stick down", right_left: "Right stick left", right_right: "Right stick right",
 };
+
+export const smashcraftActionLabel = (binding: Binding): string => binding.control === "lb" ? "Tilt" : binding.action;
 
 export const controlLabel = (control: Control): string => CONTROL_LABEL[control];
 
