@@ -394,6 +394,7 @@ mod tests {
             choice: ProfileChoice::Auto,
             output: model::Output { running: true, ready: true, focused: true },
             problem: None,
+            settings: Default::default(),
         };
         conn.write_all(ServiceMessage::Status(snapshot).line().as_bytes()).unwrap();
         let live = until(&status_rx, |s| s.snapshot.pad.is_some());

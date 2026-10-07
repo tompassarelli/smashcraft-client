@@ -25,7 +25,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
-use wc3_controller_model::{Binding, ClientMessage, InputView, Light, PadPreset, ProfileChoice};
+use wc3_controller_model::{Binding, ClientMessage, InputView, Light, PadPreset, ProfileChoice, TriggerShields};
 
 use link::{ControllerState, Shared};
 use settings::{Settings, Store};
@@ -119,16 +119,17 @@ fn set_profile(state: State<AppState>, choice: ProfileChoice) -> Result<bool, St
 
 #[tauri::command]
 fn set_pad_preset(state: State<AppState>, preset: PadPreset) -> Result<bool, String> {
-    state.update(|s| s.pad_preset = preset)?;
-    state.link.greet(state.settings.lock().unwrap().greeting());
     Ok(state.link.send(&ClientMessage::PadPreset(preset)))
 }
 
 #[tauri::command]
 fn set_tap_jump(state: State<AppState>, on: bool) -> Result<bool, String> {
-    state.update(|s| s.tap_jump = on)?;
-    state.link.greet(state.settings.lock().unwrap().greeting());
     Ok(state.link.send(&ClientMessage::TapJump(on)))
+}
+
+#[tauri::command]
+fn set_trigger_shields(state: State<AppState>, triggers: TriggerShields) -> bool {
+    state.link.send(&ClientMessage::TriggerShields(triggers))
 }
 
 #[derive(Serialize)]
@@ -147,14 +148,16 @@ struct Bindings {
     profile: ProfileChoice,
     pad_preset: PadPreset,
     tap_jump: bool,
+    triggers: TriggerShields,
     pad_presets: Vec<PadPresetBindings>,
 }
 
 #[tauri::command]
 fn bindings(state: State<AppState>) -> Bindings {
     let settings = state.settings.lock().unwrap();
+    let controller = state.link.snapshot.lock().unwrap().settings.clone();
     Bindings {
-        smashcraft: wc3_controller_model::smashcraft_bindings_for(settings.pad_preset),
+        smashcraft: wc3_controller_model::smashcraft_bindings_with(controller.pad_preset, controller.triggers),
         smashcraft_menus: wc3_controller_model::smashcraft_menu_bindings(),
         any_map: if settings.any_map_bindings.is_empty() {
             wc3_controller_model::any_map_bindings()
@@ -163,14 +166,15 @@ fn bindings(state: State<AppState>) -> Bindings {
         },
         any_map_defaults: wc3_controller_model::any_map_bindings(),
         profile: settings.profile,
-        pad_preset: settings.pad_preset,
-        tap_jump: settings.tap_jump,
+        pad_preset: controller.pad_preset,
+        tap_jump: controller.tap_jump,
+        triggers: controller.triggers,
         pad_presets: [(PadPreset::Standard, "Standard"), (PadPreset::ZJump, "Z-jump")]
             .into_iter()
             .map(|(preset, label)| PadPresetBindings {
                 preset,
                 label,
-                bindings: wc3_controller_model::smashcraft_bindings_for(preset),
+                bindings: wc3_controller_model::smashcraft_bindings_with(preset, controller.triggers),
             })
             .collect(),
     }
@@ -438,6 +442,7 @@ pub fn run() {
             set_profile,
             set_pad_preset,
             set_tap_jump,
+            set_trigger_shields,
             bindings,
             set_any_map_bindings,
             start_with_computer,

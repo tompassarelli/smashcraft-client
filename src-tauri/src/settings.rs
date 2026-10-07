@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use wc3_controller_model::{Binding, ClientMessage, PadPreset, ProfileChoice};
+use wc3_controller_model::{Binding, ClientMessage, ProfileChoice};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -10,8 +10,6 @@ pub struct Settings {
     /// The player turned controller support on.
     pub controller_on: bool,
     pub profile: ProfileChoice,
-    pub pad_preset: PadPreset,
-    pub tap_jump: bool,
     /// The player's Any map bindings; the defaults when empty.
     pub any_map_bindings: Vec<Binding>,
     /// The CustomMapData folders match records are read from; the ones found on this computer until the player sets them.
@@ -22,11 +20,7 @@ pub struct Settings {
 
 impl Settings {
     pub fn greeting(&self) -> Vec<ClientMessage> {
-        vec![
-            ClientMessage::Profile(self.profile),
-            ClientMessage::PadPreset(self.pad_preset),
-            ClientMessage::TapJump(self.tap_jump),
-        ]
+        vec![ClientMessage::Profile(self.profile)]
     }
 }
 
@@ -67,12 +61,9 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("smashcraft-settings-{}", std::process::id()));
         let store = Store::new(&dir);
         assert_eq!(store.load(), Settings::default());
-        assert!(!store.load().tap_jump);
         let settings = Settings {
             controller_on: true,
             profile: ProfileChoice::AnyMap,
-            pad_preset: PadPreset::ZJump,
-            tap_jump: true,
             any_map_bindings: wc3_controller_model::any_map_bindings(),
             record_folders: Some(vec!["/games/CustomMapData".into()]),
             menu_page: Some(true),
@@ -80,9 +71,7 @@ mod tests {
         assert!(matches!(
             settings.greeting().as_slice(),
             [
-                ClientMessage::Profile(ProfileChoice::AnyMap),
-                ClientMessage::PadPreset(PadPreset::ZJump),
-                ClientMessage::TapJump(true)
+                ClientMessage::Profile(ProfileChoice::AnyMap)
             ]
         ));
         store.save(&settings).unwrap();
