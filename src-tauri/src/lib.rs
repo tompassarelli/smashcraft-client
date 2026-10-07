@@ -124,6 +124,13 @@ fn set_pad_preset(state: State<AppState>, preset: PadPreset) -> Result<bool, Str
     Ok(state.link.send(&ClientMessage::PadPreset(preset)))
 }
 
+#[tauri::command]
+fn set_tap_jump(state: State<AppState>, on: bool) -> Result<bool, String> {
+    state.update(|s| s.tap_jump = on)?;
+    state.link.greet(state.settings.lock().unwrap().greeting());
+    Ok(state.link.send(&ClientMessage::TapJump(on)))
+}
+
 #[derive(Serialize)]
 struct PadPresetBindings {
     preset: PadPreset,
@@ -139,6 +146,7 @@ struct Bindings {
     any_map_defaults: Vec<Binding>,
     profile: ProfileChoice,
     pad_preset: PadPreset,
+    tap_jump: bool,
     pad_presets: Vec<PadPresetBindings>,
 }
 
@@ -156,6 +164,7 @@ fn bindings(state: State<AppState>) -> Bindings {
         any_map_defaults: wc3_controller_model::any_map_bindings(),
         profile: settings.profile,
         pad_preset: settings.pad_preset,
+        tap_jump: settings.tap_jump,
         pad_presets: [(PadPreset::Standard, "Standard"), (PadPreset::ZJump, "Z-jump")]
             .into_iter()
             .map(|(preset, label)| PadPresetBindings {
@@ -428,6 +437,7 @@ pub fn run() {
             turn_on_controller,
             set_profile,
             set_pad_preset,
+            set_tap_jump,
             bindings,
             set_any_map_bindings,
             start_with_computer,

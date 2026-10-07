@@ -36,7 +36,7 @@ test("Smashcraft labels the LB modifier Tilt", () => {
   expect(smashcraftActionLabel({ control: "a", action: "Attack", press: { key: "5" } })).toBe("Attack");
 });
 
-test("the Controller page selects Z-jump and redraws its bindings", async () => {
+test("the Controller page selects Z-jump and enables tap jump", async () => {
   const { api } = await import("./tauri");
   const { controllerPage } = await import("./pages/controller");
   class Element {
@@ -45,6 +45,8 @@ test("the Controller page selects Z-jump and redraws its bindings", async () => 
     className = "";
     textContent = "";
     value = "";
+    checked = false;
+    type = "";
     classList = { add: () => {}, toggle: () => {} };
     constructor(readonly tag: string) {}
     append(...children: (Element | string)[]) { this.children.push(...children); }
@@ -62,6 +64,7 @@ test("the Controller page selects Z-jump and redraws its bindings", async () => 
     ["lt", "Light shield"], ["rt", "Shield"], ["left_up", "Up"],
   ].map(([control, action]) => ({ control, action, press: { key: "i" } })) as import("./model").Binding[];
   let selected: string | undefined;
+  let tapJump: boolean | undefined;
   globalThis.document = { createElement, createElementNS: (_namespace: string, tag: string) => createElement(tag) } as unknown as Document;
   Object.assign(api, {
     controllerState: async () => ({ link: "off", wanted: false, view: { rows: [], problem: null }, snapshot: {} }),
@@ -70,12 +73,13 @@ test("the Controller page selects Z-jump and redraws its bindings", async () => 
     onInput: async () => () => {},
     bindings: async () => ({
       smashcraft: bindings(false), smashcraft_menus: [], any_map: [], any_map_defaults: [], profile: "auto",
-      pad_preset: "standard", pad_presets: [
+      pad_preset: "standard", tap_jump: false, pad_presets: [
         { preset: "standard", label: "Standard", bindings: bindings(false) },
         { preset: "z-jump", label: "Z-jump", bindings: bindings(true) },
       ],
     }),
     setPadPreset: async (preset: string) => { selected = preset; return true; },
+    setTapJump: async (on: boolean) => { tapJump = on; return true; },
   });
   try {
     const stop = controllerPage(new Element("div") as unknown as HTMLElement);
@@ -91,6 +95,11 @@ test("the Controller page selects Z-jump and redraws its bindings", async () => 
       ["A", "Attack"], ["X", "Special"], ["B", "Grab"], ["RB", "Jump"], ["Y", "Jump"],
       ["LB", "Tilt"], ["LT", "Light shield"], ["RT", "Shield"], ["Left stick up", "Up"],
     ]);
+    const toggle = elements.find((el) => el.tag === "input" && el.type === "checkbox")!;
+    expect(toggle.checked).toBe(false);
+    toggle.checked = true;
+    await toggle.handlers.get("change")!();
+    expect(tapJump).toBe(true);
     stop();
   } finally {
     Object.assign(api, apiBefore);

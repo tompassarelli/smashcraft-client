@@ -11,6 +11,7 @@ pub struct Settings {
     pub controller_on: bool,
     pub profile: ProfileChoice,
     pub pad_preset: PadPreset,
+    pub tap_jump: bool,
     /// The player's Any map bindings; the defaults when empty.
     pub any_map_bindings: Vec<Binding>,
     /// The CustomMapData folders match records are read from; the ones found on this computer until the player sets them.
@@ -24,6 +25,7 @@ impl Settings {
         vec![
             ClientMessage::Profile(self.profile),
             ClientMessage::PadPreset(self.pad_preset),
+            ClientMessage::TapJump(self.tap_jump),
         ]
     }
 }
@@ -65,10 +67,12 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("smashcraft-settings-{}", std::process::id()));
         let store = Store::new(&dir);
         assert_eq!(store.load(), Settings::default());
+        assert!(!store.load().tap_jump);
         let settings = Settings {
             controller_on: true,
             profile: ProfileChoice::AnyMap,
             pad_preset: PadPreset::ZJump,
+            tap_jump: true,
             any_map_bindings: wc3_controller_model::any_map_bindings(),
             record_folders: Some(vec!["/games/CustomMapData".into()]),
             menu_page: Some(true),
@@ -77,7 +81,8 @@ mod tests {
             settings.greeting().as_slice(),
             [
                 ClientMessage::Profile(ProfileChoice::AnyMap),
-                ClientMessage::PadPreset(PadPreset::ZJump)
+                ClientMessage::PadPreset(PadPreset::ZJump),
+                ClientMessage::TapJump(true)
             ]
         ));
         store.save(&settings).unwrap();

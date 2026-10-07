@@ -126,6 +126,15 @@ function profileCard(onChoice: (choice: ProfileChoice) => void) {
 function mappingCard() {
   const smashcraftTable = h("table.mapping");
   const presetSelect = h("select", { "aria-label": "Smashcraft pad preset" });
+  const tapJump = h("input", { type: "checkbox", "aria-label": "Tap jump" });
+  tapJump.addEventListener("change", async () => {
+    tapJump.disabled = true;
+    try {
+      await api.setTapJump(tapJump.checked);
+    } finally {
+      tapJump.disabled = false;
+    }
+  });
   let presetBindings: Bindings["pad_presets"] = [];
   presetSelect.addEventListener("change", async () => {
     const preset = presetBindings.find((p) => p.preset === presetSelect.value);
@@ -176,6 +185,7 @@ function mappingCard() {
     );
   };
   const load = (bindings: Bindings, defaults?: Binding[]) => {
+    tapJump.checked = bindings.tap_jump;
     presetBindings = bindings.pad_presets;
     presetSelect.replaceChildren(...presetBindings.map((p) => h("option", { value: p.preset }, p.label)));
     presetSelect.value = bindings.pad_preset;
@@ -195,7 +205,9 @@ function mappingCard() {
     {},
     h("h2", {}, "Buttons"),
     h("div.columns", {},
-      h("div", {}, h("h3", {}, "Smashcraft"), h("label", {}, "Pad preset ", presetSelect), smashcraftTable, h("h3", {}, "Smashcraft menus"), menusTable),
+      h("div", {}, h("h3", {}, "Smashcraft"), h("label", {}, "Pad preset ", presetSelect),
+        h("label.switch", {}, tapJump, h("span", {}, "Tap jump"), h("small", {}, "Push the left stick up to jump.")),
+        smashcraftTable, h("h3", {}, "Smashcraft menus"), menusTable),
       h("div", {}, h("h3", {}, "Any map"), anyMapTable, reset),
     ),
   );

@@ -17,6 +17,7 @@ export const api = {
   turnOnController: () => invoke<ControllerState>("turn_on_controller"),
   setProfile: (choice: ProfileChoice) => invoke<boolean>("set_profile", { choice }),
   setPadPreset: (preset: PadPreset) => invoke<boolean>("set_pad_preset", { preset }),
+  setTapJump: (on: boolean) => invoke<boolean>("set_tap_jump", { on }),
   bindings: () => invoke<Bindings>("bindings"),
   setAnyMapBindings: (bindings: Binding[]) => invoke<boolean>("set_any_map_bindings", { bindings }),
   startWithComputer: () => invoke<boolean>("start_with_computer"),
