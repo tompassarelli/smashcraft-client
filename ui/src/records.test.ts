@@ -63,7 +63,7 @@ test("the stats page's numbers from the fixture records: win rate per fighter an
   const fighter = (hero: string) => stats.fighters.find((f) => f.hero === hero)!;
   expect(stats.fighters[0]!.hero).toBe("Mountain King");
   expect(fighter("Mountain King")).toEqual({ hero: "Mountain King", matches: 2, wins: 2, kos: 6, falls: 3, dealt: 141, combatMatches: 1 });
-  expect(fighter("Archer")).toEqual({ hero: "Archer", matches: 1, wins: 0, kos: 2, falls: 3, dealt: 99, combatMatches: 1 });
+  expect(fighter("Illidan")).toEqual({ hero: "Illidan", matches: 1, wins: 0, kos: 2, falls: 3, dealt: 99, combatMatches: 1 });
   expect(fighter("Lich")).toEqual({ hero: "Lich", matches: 1, wins: 1, kos: 3, falls: 1, dealt: 200, combatMatches: 1 });
   expect(stats.fighters.length).toBe(3);
 
@@ -75,5 +75,5 @@ test("the stats page's numbers from the fixture records: win rate per fighter an
   expect(percent(0, 0)).toBe("–");
 
   const matchups = stats.matchups.map((m) => `${m.hero} vs ${m.opponent}: ${m.wins}/${m.matches}`).sort();
-  expect(matchups).toEqual(["Archer vs Lich: 0/1", "Lich vs Mountain King: 1/1", "Mountain King vs Lich: 1/1", "Mountain King vs Rifleman: 1/1"]);
+  expect(matchups).toEqual(["Illidan vs Lich: 0/1", "Lich vs Mountain King: 1/1", "Mountain King vs Lich: 1/1", "Mountain King vs Rifleman: 1/1"]);
 });
