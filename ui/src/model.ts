@@ -38,7 +38,7 @@ export const pressed = (input: InputView, button: Button): boolean =>
   (input.buttons & (1 << BUTTONS.indexOf(button))) !== 0;
 
 export type Control =
-  | "a" | "b" | "x" | "y" | "lb" | "rb" | "lt" | "rt" | "start" | "back"
+  | "a" | "b" | "x" | "y" | "lb" | "rb" | "lt" | "rt" | "start" | "back" | "left_stick"
   | "dpad_up" | "dpad_down" | "dpad_left" | "dpad_right"
   | "left_up" | "left_down" | "left_left" | "left_right"
   | "right_up" | "right_down" | "right_left" | "right_right";
@@ -61,6 +61,7 @@ export const PROFILE_CHOICES: { choice: ProfileChoice; label: string; hint: stri
 export const PROFILE_LABEL: Record<Profile, string> = { smashcraft: "Smashcraft", any_map: "Any map", off: "Off" };
 
 const CONTROL_LABEL: Record<Control, string> = {
+  left_stick: "Left stick click (L3)",
   a: "A", b: "B", x: "X", y: "Y", lb: "LB", rb: "RB", lt: "LT", rt: "RT", start: "Start", back: "Back",
   dpad_up: "D-pad up", dpad_down: "D-pad down", dpad_left: "D-pad left", dpad_right: "D-pad right",
   left_up: "Left stick up", left_down: "Left stick down", left_left: "Left stick left", left_right: "Left stick right",
