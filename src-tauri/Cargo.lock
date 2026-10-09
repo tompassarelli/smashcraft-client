@@ -471,7 +471,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a"
 dependencies = [
  "quote",
- "syn 3.0.6",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -3892,8 +3892,8 @@ dependencies = [
 
 [[package]]
 name = "wc3-controller-model"
-version = "0.1.0"
-source = "git+https://github.com/tompassarelli/wc3-controller?tag=v0.1.0#af34ef957433db731baa96a0545d56d55c4ac68f"
+version = "0.2.1"
+source = "git+https://github.com/tompassarelli/wc3-controller?tag=v0.2.1#c04b651e1cf925bd21aaa793cd1072341d35f014"
 dependencies = [
  "serde",
  "serde_json",

@@ -75,8 +75,8 @@ test("the Controller page changes choices and follows service snapshots", async 
     onInput: async () => () => {},
     bindings: async () => ({
       smashcraft: bindings(false), smashcraft_menus: [], any_map: [], any_map_defaults: [], profile: "auto",
-      pad_preset: "standard", tap_jump: false, triggers: { left: "full", right: "full" }, pad_presets: [
-        { preset: "standard", label: "Standard", bindings: bindings(false) },
+      pad_preset: "melee", tap_jump: false, triggers: { left: "full", right: "full" }, pad_presets: [
+        { preset: "melee", label: "Melee", bindings: bindings(false) },
         { preset: "z-jump", label: "Z-jump", bindings: bindings(true) },
       ],
     }),
@@ -88,7 +88,7 @@ test("the Controller page changes choices and follows service snapshots", async 
     const stop = controllerPage(new Element("div") as unknown as HTMLElement);
     await Promise.resolve();
     const select = elements.find((el) => el.tag === "select")!;
-    expect(select.value).toBe("standard");
+    expect(select.value).toBe("melee");
     select.value = "z-jump";
     await select.handlers.get("change")!();
     expect(selected).toBe("z-jump");
@@ -110,8 +110,8 @@ test("the Controller page changes choices and follows service snapshots", async 
     right.value = "light";
     await right.handlers.get("change")!();
     expect(triggers).toEqual({ left: "light", right: "light" });
-    publish("standard", true, "full", "light");
-    expect(select.value).toBe("standard");
+    publish("melee", true, "full", "light");
+    expect(select.value).toBe("melee");
     expect(toggle.checked).toBe(true);
     expect(selects[1]!.value).toBe("full");
     expect(right.value).toBe("light");

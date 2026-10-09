@@ -3,7 +3,7 @@
 export type Light = "green" | "amber" | "red" | "off";
 export type Link = "off" | "starting" | "connected";
 export type Profile = "map" | "any_map" | "off";
-export type PadPreset = "standard" | "z-jump";
+export type PadPreset = "melee" | "z-jump" | "tom";
 export type TriggerShields = { left: "full" | "light"; right: "full" | "light" };
 export type ControllerSettings = { pad_preset: PadPreset; tap_jump: boolean; triggers: TriggerShields };
 export type PadPresetBindings = { preset: PadPreset; label: string; bindings: Binding[] };

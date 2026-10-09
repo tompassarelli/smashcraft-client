@@ -169,7 +169,7 @@ fn bindings(state: State<AppState>) -> Bindings {
         pad_preset: controller.pad_preset,
         tap_jump: controller.tap_jump,
         triggers: controller.triggers,
-        pad_presets: [(PadPreset::Standard, "Standard"), (PadPreset::ZJump, "Z-jump")]
+        pad_presets: [(PadPreset::Melee, "Melee"), (PadPreset::ZJump, "Z-jump"), (PadPreset::Tom, "Tom")]
             .into_iter()
             .map(|(preset, label)| PadPresetBindings {
                 preset,
