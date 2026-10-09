@@ -2,7 +2,7 @@
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { SOURCE_STAMP_TEXT, sourceVersion } from "../../ts/scripts/sourceVersion";
-import { buildViewerLua } from "../../ts/scripts/viewerLua";
+import { viewerModules } from "../../ts/scripts/viewerLua";
 
 const here = import.meta.dir;
 const dist = join(here, "dist");
@@ -39,6 +39,8 @@ const simCode = readFileSync(simFile, "utf8");
 if (!simCode.includes(SOURCE_STAMP_TEXT)) throw new Error("sim.js holds no source stamp to replace");
 writeFileSync(simFile, simCode.replaceAll(SOURCE_STAMP_TEXT, JSON.stringify(sourceVersion(ts))));
 // The viewer's modules for playing a replay in its own map's simulation (ts/scripts/viewerLua.ts).
-writeFileSync(join(dist, "viewer.lua"), buildViewerLua(ts));
+const tstl = Bun.spawnSync([process.execPath, "--bun", join(ts, "node_modules/typescript-to-lua/dist/tstl.js"), "-p", join(ts, "tsconfig.viewer-lua.json")], { cwd: ts, stdout: "inherit", stderr: "inherit" });
+if (tstl.exitCode !== 0) process.exit(1);
+writeFileSync(join(dist, "viewer.lua"), viewerModules(readFileSync(join(ts, "build/viewer-lua/viewer.lua"), "utf8")));
 cpSync(join(here, "index.html"), join(dist, "index.html"));
 cpSync(join(here, "styles.css"), join(dist, "styles.css"));
