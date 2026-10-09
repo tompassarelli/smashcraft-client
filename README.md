@@ -10,12 +10,16 @@ smashcraft:client/ui, embedded into the binary at build time.
 
 Controller support is optional: Smashcraft plays on the keyboard alone, and
 the service turns a pad into the same keys. The client never reads the pad itself. It connects to the Warcraft III
-Controller service (smashcraft:companion) on 127.0.0.1:47631 and shows its
-status, live input and bindings; the messages and plain-language status rows
-come from smashcraft:companion/model. When nothing answers and the player has
+Controller service ([wc3-controller](https://github.com/tompassarelli/wc3-controller),
+with Smashcraft's plug-in from smashcraft:controller) on 127.0.0.1:47631 and
+shows its status, live input and bindings; the messages and plain-language
+status rows come from wc3-controller's model crate, pinned by tag in
+smashcraft:client/src-tauri/Cargo.toml. When nothing answers and the player has
 turned controller support on (remembered in the client's settings), it starts
-the bundled service with `--service`: `WC3_CONTROLLER_SERVICE`, else
-`wc3-journal` beside the client, else on the `PATH`. A started service gets 10 s
+the bundled service with `--service --plugin wc3-journal`:
+`WC3_CONTROLLER_SERVICE`, else `wc3-controller` beside the client, else on the
+`PATH`; the plug-in is `wc3-journal` beside the client, else the one
+`bun wisp controller` installs. A started service gets 10 s
 to answer, three starts in a row, then the page says it couldn't start. The
 service is single-instance, so a client never starts a second copy beside a
 running one. `WC3_CONTROLLER_PORT` points the client at a test service.

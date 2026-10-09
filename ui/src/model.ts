@@ -1,8 +1,8 @@
-// Mirrors smashcraft:companion/model (Rust, serde) and the client's commands.
+// Mirrors wc3-controller:model (Rust, serde) and the client's commands.
 
 export type Light = "green" | "amber" | "red" | "off";
 export type Link = "off" | "starting" | "connected";
-export type Profile = "smashcraft" | "any_map" | "off";
+export type Profile = "map" | "any_map" | "off";
 export type PadPreset = "standard" | "z-jump";
 export type TriggerShields = { left: "full" | "light"; right: "full" | "light" };
 export type ControllerSettings = { pad_preset: PadPreset; tap_jump: boolean; triggers: TriggerShields };
@@ -19,6 +19,7 @@ export type Snapshot = {
   session: { map: string; phase: string; player: number | null } | null;
   profile: Profile;
   choice: ProfileChoice;
+  map?: string | null;
   output: { running: boolean; ready: boolean; focused: boolean };
   problem: string | null;
 };
@@ -53,12 +54,12 @@ export type OnlineState = PlayState & { mode: OnlineMode | null };
 
 export const PROFILE_CHOICES: { choice: ProfileChoice; label: string; hint: string }[] = [
   { choice: "auto", label: "Automatic", hint: "Smashcraft controls in Smashcraft, your own keys everywhere else" },
-  { choice: "smashcraft", label: "Smashcraft", hint: "Smashcraft's fighting controls and menus" },
+  { choice: "map", label: "Smashcraft", hint: "Smashcraft's fighting controls and menus" },
   { choice: "any_map", label: "Any map", hint: "Your own keys and mouse for any map" },
   { choice: "off", label: "Off", hint: "Your controller doesn't press anything" },
 ];
 
-export const PROFILE_LABEL: Record<Profile, string> = { smashcraft: "Smashcraft", any_map: "Any map", off: "Off" };
+export const PROFILE_LABEL: Record<Profile, string> = { map: "Smashcraft", any_map: "Any map", off: "Off" };
 
 const CONTROL_LABEL: Record<Control, string> = {
   left_stick: "Left stick click (L3)",

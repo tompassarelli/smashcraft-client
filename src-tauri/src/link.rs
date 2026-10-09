@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use wc3_controller_model::{self as model, ClientMessage, InputView, Light, Link, ServiceMessage, Snapshot, View};
 
-/// The service's local interface (smashcraft:companion/model).
+/// The service's local interface (wc3-controller:model).
 pub const SERVICE_PORT: u16 = 47631;
 /// The interface port; `WC3_CONTROLLER_PORT` overrides it for a test service.
 pub fn service_port() -> u16 {
@@ -140,9 +140,10 @@ pub trait Starter: Send + Sync + 'static {
     fn start(&self) -> Result<(), String>;
 }
 
-/// The bundled service: `WC3_CONTROLLER_SERVICE`, else `wc3-journal` beside
-/// this executable, else `wc3-journal` on the PATH. Started detached so it
-/// keeps serving after the window closes.
+/// The bundled service: `WC3_CONTROLLER_SERVICE`, else `wc3-controller` beside
+/// this executable, else `wc3-controller` on the PATH, with Smashcraft's
+/// plug-in ([`plugin_program`]). Started detached so it keeps serving after the
+/// window closes.
 pub struct BundledService {
     pub log: Option<PathBuf>,
 }
@@ -151,12 +152,21 @@ pub fn service_program() -> PathBuf {
     if let Some(path) = std::env::var_os("WC3_CONTROLLER_SERVICE") {
         return path.into();
     }
-    let name = if cfg!(windows) { "wc3-journal.exe" } else { "wc3-journal" };
+    let name = if cfg!(windows) { "wc3-controller.exe" } else { "wc3-controller" };
     std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.join(name)))
         .filter(|path| path.exists())
         .unwrap_or_else(|| name.into())
+}
+
+/// Smashcraft's plug-in (smashcraft:controller): `wc3-journal` beside this
+/// executable, else the one `bun wisp controller` installs; none leaves the
+/// service on Any map.
+pub fn plugin_program() -> Option<PathBuf> {
+    let beside = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join("wc3-journal")));
+    let installed = std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share/smashcraft-build-inputs/controller/wc3-journal"));
+    [beside, installed].into_iter().flatten().find(|path| path.exists())
 }
 
 impl Starter for BundledService {
@@ -173,6 +183,7 @@ impl Starter for BundledService {
         };
         let mut child = Command::new(&program)
             .arg("--service")
+            .args(plugin_program().map(|plugin| vec!["--plugin".into(), plugin.into_os_string()]).unwrap_or_default())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(stderr)
@@ -390,7 +401,8 @@ mod tests {
             pad: Some(Pad { name: "Xbox One S pad".into(), id: "pad".into() }),
             game: Some(Game { pid: 7, window: true }),
             session: Some(Session { map: "Smashcraft".into(), phase: Phase::Match, player: Some(1) }),
-            profile: Profile::Smashcraft,
+            profile: Profile::Map,
+            map: Some("Smashcraft".into()),
             choice: ProfileChoice::Auto,
             output: model::Output { running: true, ready: true, focused: true },
             problem: None,

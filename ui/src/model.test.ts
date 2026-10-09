@@ -92,7 +92,7 @@ test("the Controller page changes choices and follows service snapshots", async 
     select.value = "z-jump";
     await select.handlers.get("change")!();
     expect(selected).toBe("z-jump");
-    const publish = (preset: string, tap: boolean, left: string, right: string) => onState?.({ link: "connected", wanted: true, view: { rows: [], problem: null }, snapshot: { profile: "smashcraft", settings: { pad_preset: preset, tap_jump: tap, triggers: { left, right } } } } as unknown as import("./model").ControllerState);
+    const publish = (preset: string, tap: boolean, left: string, right: string) => onState?.({ link: "connected", wanted: true, view: { rows: [], problem: null }, snapshot: { profile: "map", settings: { pad_preset: preset, tap_jump: tap, triggers: { left, right } } } } as unknown as import("./model").ControllerState);
     publish("z-jump", false, "light", "full");
     const table = elements.find((el) => el.tag === "table")!;
     const rows = table.children.map((row) => (row as Element).children.map((cell) => (cell as Element).children[0]));

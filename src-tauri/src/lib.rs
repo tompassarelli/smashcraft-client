@@ -157,8 +157,8 @@ fn bindings(state: State<AppState>) -> Bindings {
     let settings = state.settings.lock().unwrap();
     let controller = state.link.snapshot.lock().unwrap().settings.clone();
     Bindings {
-        smashcraft: wc3_controller_model::smashcraft_bindings_with(controller.pad_preset, controller.triggers),
-        smashcraft_menus: wc3_controller_model::smashcraft_menu_bindings(),
+        smashcraft: wc3_controller_model::fighter_bindings_with(controller.pad_preset, controller.triggers),
+        smashcraft_menus: wc3_controller_model::menu_pointer_bindings(),
         any_map: if settings.any_map_bindings.is_empty() {
             wc3_controller_model::any_map_bindings()
         } else {
@@ -174,7 +174,7 @@ fn bindings(state: State<AppState>) -> Bindings {
             .map(|(preset, label)| PadPresetBindings {
                 preset,
                 label,
-                bindings: wc3_controller_model::smashcraft_bindings_with(preset, controller.triggers),
+                bindings: wc3_controller_model::fighter_bindings_with(preset, controller.triggers),
             })
             .collect(),
     }
