@@ -18,7 +18,9 @@ beside it, and `VERSION` naming the commits it was built from. Run
 (`libwebkit2gtk-4.1-0 libayatana-appindicator3-1` on Debian and Ubuntu).
 
 Put a Smashcraft map, `Smashcraft 0.0.N.w3x`, in Warcraft III's
-`Maps/00-Smashcraft` folder. Play starts it.
+`Maps/00-Smashcraft` folder. Play starts it. `smashcraft --check` prints,
+without opening a window, what the controller service reports (its pad), the
+bundled service it would start, and the map and command Play would run.
 
 ## What it reads from Smashcraft
 
