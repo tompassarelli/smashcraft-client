@@ -1,7 +1,7 @@
 // Installs the client for this Linux user, outside any system configuration:
 // ~/.local/share/smashcraft-build-inputs/smashcraft-client/<commit>/ holds the
 // build, `current` points at it, `smashcraft` is the launcher the desktop entry
-// and autostart run. Run from client/, inside its shell or not:
+// and autostart run. Run from the repository, inside its shell or not:
 //   bun scripts/install.ts
 // Outside nix-shell, the release build runs inside shell.nix for its libraries.
 // Cargo comes from scripts/cargo.ts: PATH, the pinned rustup toolchain, or a
@@ -19,6 +19,7 @@ const commit = (await $`git -C ${client} rev-parse --short=12 HEAD`.text()).trim
 const dirty = (await $`git -C ${client} status --porcelain -- .`.text()).trim() !== "";
 const version = dirty ? `${commit}-dirty` : commit;
 
+await $`bun scripts/kit.ts`.cwd(client);
 await $`bun install --frozen-lockfile`.cwd(join(client, "ui"));
 await $`bun run build`.cwd(join(client, "ui"));
 const cargo = findCargo(hostSearch(client));
@@ -46,14 +47,15 @@ symlinkSync(version, next);
 renameSync(next, join(root, "current"));
 
 const service = process.env.WC3_CONTROLLER_SERVICE ?? "";
+const tools = process.env.SMASHCRAFT_TS ?? (existsSync(join(home, "code/smashcraft/main/ts/package.json")) ? join(home, "code/smashcraft/main/ts") : "");
 const launcher = join(root, "smashcraft");
 writeFileSync(
   launcher,
   `#!/bin/sh
-# Smashcraft client launcher (written by smashcraft:client/scripts/install.ts).
+# Smashcraft client launcher (written by smashcraft-client:scripts/install.ts).
 export SMASHCRAFT_LAUNCHER="${launcher}"
 export LD_LIBRARY_PATH="${runtime}/lib\${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-${service ? `export WC3_CONTROLLER_SERVICE="${service}"\n` : ""}exec "${root}/current/smashcraft" "$@"
+${service ? `export WC3_CONTROLLER_SERVICE="${service}"\n` : ""}${tools ? `export SMASHCRAFT_TS="${tools}"\n` : ""}exec "${root}/current/smashcraft" "$@"
 `,
 );
 chmodSync(launcher, 0o755);

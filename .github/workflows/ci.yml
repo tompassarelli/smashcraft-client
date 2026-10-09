@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: smashcraft-client-linux-x86_64
+            service: wc3-controller-linux-x86_64.tar.gz
+          - os: windows-latest
+            asset: smashcraft-client-windows-x86_64
+            service: wc3-controller-windows-x86_64.zip
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+      - name: Linux window and tray libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - name: Smashcraft client kit (smashcraft.ref)
+        run: bun scripts/kit.ts
+      - name: Pages
+        working-directory: ui
+        run: bun install --frozen-lockfile && bun test && bun test ../scripts && bun run check && bun run build
+      - name: Pinned Rust toolchain
+        working-directory: src-tauri
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Tests
+        working-directory: src-tauri
+        run: cargo test --locked
+      - name: Release build
+        working-directory: src-tauri
+        run: cargo build --locked --release
+      # The controller service at the tag the model crate is pinned to.
+      - name: Package with the controller service
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(sed -n 's/^wc3-controller-model = .*tag = "\([^"]*\)".*/\1/p' src-tauri/Cargo.toml)
+          test -n "$tag"
+          mkdir -p service dist/${{ matrix.asset }}
+          gh release download "$tag" -R tompassarelli/wc3-controller -p "${{ matrix.service }}" -D service
+          cd service
+          if [ "$RUNNER_OS" = Windows ]; then 7z x -bd ${{ matrix.service }} >/dev/null; else tar xzf ${{ matrix.service }}; fi
+          cd ..
+          cp service/wc3-controller-*/wc3-controller* dist/${{ matrix.asset }}/
+          cp src-tauri/target/release/smashcraft${{ runner.os == 'Windows' && '.exe' || '' }} src-tauri/icons/icon.png LICENSE README.md dist/${{ matrix.asset }}/
+          echo "smashcraft-client ${GITHUB_SHA::12}, wc3-controller $tag, Smashcraft $(cat smashcraft.ref | cut -c1-12) (kit version $(sed -n 's/.*"version": "\(.*\)".*/\1/p' ui/kit/kit.json))" > dist/${{ matrix.asset }}/VERSION
+          cd dist && if [ "$RUNNER_OS" = Windows ]; then 7z a -bd ${{ matrix.asset }}.zip ${{ matrix.asset }} >/dev/null; else tar czf ${{ matrix.asset }}.tar.gz ${{ matrix.asset }}; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}.*
+          if-no-files-found: error
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Linux and Windows builds of the Smashcraft client $GITHUB_REF_NAME, with the wc3-controller service." || true
+          gh release upload "$GITHUB_REF_NAME" dist/${{ matrix.asset }}.* --clobber

@@ -296,16 +296,17 @@ fn watch_in_warcraft(state: State<AppState>, file: String, name: String) -> Resu
 }
 
 #[tauri::command]
-fn play_state() -> play::PlayState {
-    PLAY.state()
+fn play_state(state: State<AppState>) -> play::PlayState {
+    PLAY.state(&maps_of(&state))
 }
 
 #[tauri::command]
-fn play(app: AppHandle) -> Result<play::PlayState, String> {
-    PLAY.start(move |state| {
-        let _ = app.emit("play", state);
+fn play(app: AppHandle, state: State<AppState>) -> Result<play::PlayState, String> {
+    let maps = maps_of(&state);
+    PLAY.start(&maps, move |snapshot| {
+        let _ = app.emit("play", snapshot);
     })?;
-    Ok(PLAY.state())
+    Ok(PLAY.state(&maps))
 }
 
 #[tauri::command]
@@ -325,7 +326,7 @@ fn decline_menu_page(state: State<AppState>) -> Result<(), String> {
 }
 
 fn start_online(app: AppHandle, state: &AppState, mode: online::Mode, code: Option<&str>) -> Result<online::OnlineState, String> {
-    let dir = play::play_dir().ok_or("Online play isn't set up on this computer yet.")?;
+    let dir = play::tools_dir().ok_or("Online play needs Smashcraft's tools: set SMASHCRAFT_TS to their ts folder.")?;
     let repair = state.settings.lock().unwrap().menu_page == Some(true);
     let bun = std::env::var_os("BUN").unwrap_or_else(|| "bun".into());
     let log = state.log_dir.as_ref().map(|dir| dir.join("online.log"));

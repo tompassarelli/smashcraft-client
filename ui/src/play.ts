@@ -10,7 +10,7 @@ export function playButton(): HTMLElement {
   const render = (state: PlayState) => {
     button.disabled = !state.available || state.running;
     button.textContent = state.running ? "Starting…" : "Play";
-    button.title = state.available ? "Start Warcraft III and a match against the computer" : "Play isn't set up on this computer yet.";
+    button.title = state.available ? "Start Warcraft III on the current Smashcraft map" : "Put a Smashcraft map in Warcraft III's Maps/00-Smashcraft folder first.";
     if (state.lines.length || state.running) panel.hidden = false;
     steps.replaceChildren(...state.lines.map((line) => h("li", {}, line)));
     panel.classList.toggle("failed", state.finished === false);

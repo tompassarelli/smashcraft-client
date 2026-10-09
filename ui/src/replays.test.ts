@@ -5,15 +5,15 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TAPE_REPLAY_SERIAL, recordTapeReplay } from "../../../ts/src/game/replay/tapeReplay";
-import * as ownSimulation from "../../../ts/src/game/replay/viewerBundle";
+import * as ownSimulation from "../kit/sim.js";
 import { Playback, clock } from "./playback";
 import { type ReplayFile, type Simulation, type Simulations, bundleWatch, type WarcraftGame, joinedReplay, keptName, openForWatching, replayEntries, warcraftGameOf, warcraftName } from "./replays";
 
 /** Lines as Warcraft writes a Preload file. */
 const preload = (lines: readonly string[]) => `function PreloadFiles takes nothing returns nothing\n${lines.map((line) => `\tcall Preload( "${line}" )\n`).join("")}endfunction\n`;
 
-const recorded = recordTapeReplay(700, 401);
+const recorded = JSON.parse(readFileSync(join(import.meta.dir, "../kit/fixtures/tape-replay.json"), "utf8")) as { serial: number; manifest: string[]; parts: string[][] };
+const TAPE_REPLAY_SERIAL = recorded.serial;
 const manifest = preload(recorded.manifest);
 const parts = recorded.parts.map(preload);
 const own: Simulation = ownSimulation;
@@ -38,7 +38,7 @@ test("a manifest is listed with the record of the same match beside it; a stray 
     { folder: "b", name: "notes.txt", text: "hello", modified: 1 },
   ];
   const { entries, refused } = replayEntries(files, [{ folder: "a", name: `smashcraft-match-${TAPE_REPLAY_SERIAL}.txt`, text: record, modified: 2 }]);
-  expect(entries.map((e) => [e.build, e.version, e.serial, e.frames, e.parts])).toEqual([["test", "development", TAPE_REPLAY_SERIAL, 700, parts.length]]);
+  expect(entries.map((e) => [e.build, e.version, e.serial, e.frames, e.parts])).toEqual([["test", own.sourceVersion(), TAPE_REPLAY_SERIAL, 700, parts.length]]);
   expect(entries[0]?.record?.serial).toBe(TAPE_REPLAY_SERIAL);
   expect(refused.map((r) => r.file)).toEqual(["notes.txt"]);
 });
@@ -47,7 +47,7 @@ test("a replay joined from its parts and copied as one file plays with pause, fr
   expect(joinedReplay(manifest, parts.slice(1))).toBe(`the replay has ${parts.length} parts; ${parts.length - 1} were found`);
   const joined = joinedReplay(manifest, parts);
   if (typeof joined === "string") throw new Error(joined);
-  expect(keptName(joined)).toBe(`smashcraft-test-replay-${TAPE_REPLAY_SERIAL}-development.txt`);
+  expect(keptName(joined)).toBe(`smashcraft-test-replay-${TAPE_REPLAY_SERIAL}-${own.sourceVersion()}.txt`);
   // Copied to another computer: the one file, opened on its own.
   const copied = joinedReplay(`${joined.join("\n")}\n`, []);
   if (typeof copied === "string") throw new Error(copied);
@@ -85,10 +85,10 @@ test("a replay joined from its parts and copied as one file plays with pause, fr
 test("a replay from a version the client doesn't hold names that version; a kept bundle or a map of that version plays it", async () => {
   const joined = joinedReplay(manifest, parts);
   if (typeof joined === "string") throw new Error(joined);
-  const other = joined.map((line) => (line === "version development" ? "version 0123456789ab" : line));
+  const other = joined.map((line) => (line === `version ${own.sourceVersion()}` ? "version 0123456789ab" : line));
   const missing = await openForWatching(other, simulations());
   expect("problem" in missing && missing.problem).toBe(
-    "This replay was recorded on Smashcraft test (version 0123456789ab). This client can play replays from version development. To watch it, put that version's map in your Warcraft III Maps folder.",
+    `This replay was recorded on Smashcraft test (version 0123456789ab). This client can play replays from version ${own.sourceVersion()}. To watch it, put that version's map in your Warcraft III Maps folder.`,
   );
   const other_: Simulation = { ...own, sourceVersion: () => "0123456789ab" };
   expect("watch" in (await openForWatching(other, simulations({ "0123456789ab": other_ })))).toBe(true);

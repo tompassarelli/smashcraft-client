@@ -2,13 +2,13 @@
 // replays"): listing them beside their match records, joining a manifest's
 // parts into one replay, and opening one in the simulation of the version
 // that recorded it. Each version's simulation is its own bundle
-// (smashcraft:ts/src/game/replay/viewer.ts, VIEWER_API 1): the client ships
-// its own and keeps every one it has played.
-import { type ReplayHeader, joinReplay, parseReplayHeader, parseReplayPart } from "../../../ts/src/game/replay/replayFormat";
-import type { ReplayScene, ReplayViewer } from "../../../ts/src/game/replay/viewer";
+// (the client kit's sim.js, VIEWER_API 1; smashcraft:docs/client-interface.md):
+// the client ships its own and keeps every one it has played.
+import { type ReplayHeader, joinReplay, parseReplayHeader, parseReplayPart } from "../kit/sim.js";
+import type { ReplayScene, ReplayViewer } from "../kit/sim.js";
 import { type MatchRecord, type RecordFile, parseRecord, preloadLines } from "./records";
 
-export type { ReplayScene, ReplayViewer } from "../../../ts/src/game/replay/viewer";
+export type { ReplayScene, ReplayViewer } from "../kit/sim.js";
 
 /** A manifest the map wrote, or a joined replay the client keeps, as the app reads it. */
 export type ReplayFile = { folder: string; name: string; text: string; modified: number };
@@ -98,7 +98,7 @@ export type Simulation = {
 /**
  * A replay being watched: the frame shown and its scene, a run of frames
  * forward and a seek. Async, as a replay may play in its map's simulation in
- * the app (smashcraft:client/src-tauri/src/mapsim.rs).
+ * the app (smashcraft-client:src-tauri/src/mapsim.rs).
  */
 export interface Watch {
   readonly first: number;

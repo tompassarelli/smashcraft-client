@@ -50,7 +50,7 @@ let viewerLua: Promise<string> | undefined;
 
 type Stepped = { frame: number; ended: boolean; scene: ReplayScene } | { problem: string };
 
-/** The replay played in its version's own map, in the app (smashcraft:client/src-tauri/src/mapsim.rs). */
+/** The replay played in its version's own map, in the app (smashcraft-client:src-tauri/src/mapsim.rs). */
 async function mapWatch(version: string, lines: readonly string[]): Promise<Watch | string | undefined> {
   const viewer = await (viewerLua ??= fetch(new URL("./viewer.lua", location.href).href).then((response) => response.text()));
   let answer: string;

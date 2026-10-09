@@ -95,7 +95,7 @@ export function onlinePage(root: HTMLElement): () => void {
         ),
       ),
       ...(steps ? [steps] : []),
-      ...(!state.available ? [h("p.note", {}, "Online play isn't set up on this computer yet.")] : []),
+      ...(!state.available ? [h("p.note", {}, "Online play needs Smashcraft's tools (SMASHCRAFT_TS).")] : []),
       ...(problem ? [h("p.problem", {}, problem)] : []),
       ...(choice === true && !view.busy ? [h("button.quiet", { type: "button", onclick: setUp, title: "After a Warcraft III update, or if hosting can't find Warcraft III's menus" }, "Set up Warcraft III's menus again")] : []),
     );

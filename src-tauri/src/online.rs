@@ -1,5 +1,5 @@
-//! Direct play (#142): runs `bun wisp online setup|host|join CODE` from the
-//! Smashcraft checkout Play uses (smashcraft:ts/scripts/wisp/online.ts). The
+//! Direct play (#142): runs `bun wisp online setup|host|join CODE` in Smashcraft's
+//! tools, `SMASHCRAFT_TS` (smashcraft:docs/client-interface.md, "Commands"). The
 //! command's output lines are written for players and shown on the Online
 //! page; its error output goes to the client's log. "Start now" sends a
 //! running host a `start` line.
@@ -58,7 +58,7 @@ pub struct Online {
 impl Online {
     pub fn state(&self) -> OnlineState {
         let mut state = self.state.lock().unwrap().clone();
-        state.available = crate::play::play_dir().is_some();
+        state.available = crate::play::tools_dir().is_some();
         state
     }
 

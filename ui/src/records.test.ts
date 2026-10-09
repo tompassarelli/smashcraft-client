@@ -7,7 +7,7 @@ import { computeStats, perMatch, percent } from "./stats";
 const FIXTURES = join(import.meta.dir, "../test/fixtures/records");
 const RECORD_NAME = /^smashcraft-match-\d+\.txt$/;
 
-/** The fixture folders' record files as the app reads them (smashcraft:client/src-tauri/src/records.rs), written a minute apart in order. */
+/** The fixture folders' record files as the app reads them (smashcraft-client:src-tauri/src/records.rs), written a minute apart in order. */
 function fixtureFiles(): RecordFile[] {
   const files: RecordFile[] = [];
   for (const folder of ["a", "b"]) {

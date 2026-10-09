@@ -3,7 +3,7 @@
 //! joined replays the client keeps (opened from a file or saved to share),
 //! and the simulation of every version the client has played, which watching
 //! a replay needs. The pages join, check and play them
-//! (smashcraft:client/ui/src/replays.ts); this side only reads and keeps files.
+//! (smashcraft-client:ui/src/replays.ts); this side only reads and keeps files.
 
 use serde::Serialize;
 use std::path::{Path, PathBuf};

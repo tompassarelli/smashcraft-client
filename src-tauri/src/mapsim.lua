@@ -1,5 +1,5 @@
 -- Loads a Smashcraft map's bundle without starting the map, adds the replay
--- viewer's modules and calls its driver; smashcraft:client/src-tauri/src/mapsim.rs
+-- viewer's modules and calls its driver; src-tauri/src/mapsim.rs
 -- runs it in 32-bit Lua. Plain Lua: it runs before any of the map's code.
 local requireModule, modules, driver
 function smashcraft_load_map(war3)

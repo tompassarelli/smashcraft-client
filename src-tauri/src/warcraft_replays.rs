@@ -5,7 +5,7 @@
 //! written during that game, and puts a copy back into Warcraft's
 //! `Replays` folder for the player to watch from Warcraft's Replays menu.
 //! A game is a whole lobby session, every rematch included; the client's own
-//! per-match replays are smashcraft:client/src-tauri/src/replays.rs.
+//! per-match replays are smashcraft-client:src-tauri/src/replays.rs.
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

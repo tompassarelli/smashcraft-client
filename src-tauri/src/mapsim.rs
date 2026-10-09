@@ -3,8 +3,8 @@
 //! Maps folder (its own builds, or Download for a map someone hosted). The
 //! client reads the map's war3map.lua (mpq.rs), keeps it under that version,
 //! and runs it in 32-bit Lua (lua32.rs), Warcraft's number model, with the
-//! viewer's two modules (smashcraft:ts/src/game/replay/viewerDriver.ts, built
-//! by the page build as viewer.lua) added to the map's own modules. The
+//! viewer's two modules (viewer.lua from the client kit,
+//! smashcraft:docs/client-interface.md) added to the map's own modules. The
 //! viewer's functions take and give text: the page's scenes as JSON.
 
 use std::collections::HashMap;
@@ -211,5 +211,25 @@ end,
         assert!(sims.open(&[dir.join("Maps")], "ffffffffffff", "abcd", viewer).unwrap_err().contains("no map of version ffffffffffff"));
         assert_eq!(maps_folders(&[dir.join("CustomMapData").to_string_lossy().into_owned()]), vec![dir.join("Maps")]);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// #141: the client kit's recorded replay plays in its stand-in map (the viewer's Lua bundle) in 32-bit Lua.
+    #[test]
+    fn plays_the_kit_replay_in_a_map_bundle_with_the_kit_viewer() {
+        let kit = Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/kit");
+        let read = |name: &str| std::fs::read_to_string(kit.join(name)).unwrap_or_else(|_| panic!("no {name} in ui/kit: run bun scripts/kit.ts"));
+        let lua = Lua::new().unwrap();
+        lua.run(GLUE, "glue").unwrap();
+        lua.call(c"smashcraft_load_map", &[&read("fixtures/map.lua")]).unwrap();
+        lua.call(c"smashcraft_add_viewer", &[&read("viewer.lua")]).unwrap();
+        let opened = lua.call(c"smashcraft_open", &[&read("fixtures/tape-replay.txt")]).unwrap();
+        assert_eq!(serde_json::from_str::<serde_json::Value>(&opened).unwrap(), serde_json::json!({ "first": 0, "last": 700, "frame": 0 }));
+        let advanced: serde_json::Value = serde_json::from_str(&lua.call(c"smashcraft_advance", &["450"]).unwrap()).unwrap();
+        assert_eq!((advanced["frame"].as_i64(), advanced["ended"].as_bool(), advanced["scene"]["fighters"].as_array().map(Vec::len)), (Some(450), Some(false), Some(2)));
+        assert!(!advanced["scene"]["fighters"][0]["parts"].as_array().unwrap().is_empty());
+        let sought: serde_json::Value = serde_json::from_str(&lua.call(c"smashcraft_seek", &["120"]).unwrap()).unwrap();
+        assert_eq!((sought["frame"].as_i64(), sought["scene"]["frame"].as_i64()), (Some(120), Some(120)));
+        let ended: serde_json::Value = serde_json::from_str(&lua.call(c"smashcraft_advance", &["1000"]).unwrap()).unwrap();
+        assert_eq!((ended["frame"].as_i64(), ended["ended"].as_bool()), (Some(700), Some(true)));
     }
 }

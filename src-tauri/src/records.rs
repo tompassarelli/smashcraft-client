@@ -1,7 +1,7 @@
 //! Match records the map writes into each configured CustomMapData folder
 //! (smashcraft:docs/design/client.md, "Match records"), and the client's own
 //! history store. The pages parse, ingest and count them
-//! (smashcraft:client/ui/src/records.ts); this side only reads the folders and
+//! (smashcraft-client:ui/src/records.ts); this side only reads the folders and
 //! keeps the store as JSON in the client's data folder.
 
 use serde::Serialize;
