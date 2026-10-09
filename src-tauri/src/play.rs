@@ -148,7 +148,7 @@ mod tests {
         assert_eq!(launch.prefix.as_deref(), Some(dir.as_path()));
         assert_eq!(launch.args[1..3], [OsString::from("-launch"), OsString::from("-loadfile")]);
         if cfg!(not(windows)) {
-    assert!(launch.args[3].to_string_lossy().starts_with("Z:\\") && launch.args[3].to_string_lossy().ends_with("\\00-Smashcraft\\Smashcraft 0.0.10.w3x"));
+            assert!(launch.args[3].to_string_lossy().starts_with("Z:\\") && launch.args[3].to_string_lossy().ends_with("\\00-Smashcraft\\Smashcraft 0.0.10.w3x"));
         }
         let given = launch_for(&map, Some("wc3".into()), false).unwrap();
         assert_eq!((given.program, given.args.len(), given.prefix), ("wc3".into(), 3, None));
