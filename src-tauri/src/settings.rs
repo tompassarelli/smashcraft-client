@@ -42,13 +42,7 @@ impl Store {
     }
 
     pub fn save(&self, settings: &Settings) -> Result<(), String> {
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-        }
-        let tmp = self.path.with_extension("json.tmp");
-        let text = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
-        std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
-        std::fs::rename(&tmp, &self.path).map_err(|e| e.to_string())
+        crate::files::write_atomic(&self.path, serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?)
     }
 }
 
