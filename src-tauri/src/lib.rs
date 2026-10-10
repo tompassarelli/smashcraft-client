@@ -4,6 +4,7 @@
 //! client starts the bundled service only when none answers.
 
 pub mod autostart;
+pub mod files;
 pub mod link;
 pub mod lua32;
 pub mod mapsim;
@@ -212,7 +213,7 @@ fn set_record_folders(state: State<AppState>, folders: Vec<String>) -> Result<Ve
 }
 
 #[tauri::command]
-fn read_records(state: State<AppState>) -> Vec<records::RecordFile> {
+fn read_records(state: State<AppState>) -> Vec<files::TextFile> {
     let folders = record_folders_of(&state.settings.lock().unwrap());
     records::read_record_files(&folders)
 }
@@ -228,7 +229,7 @@ fn save_history(state: State<AppState>, history: serde_json::Value) -> Result<()
 }
 
 #[tauri::command]
-fn read_replays(state: State<AppState>) -> Vec<replays::ReplayFile> {
+fn read_replays(state: State<AppState>) -> Vec<files::TextFile> {
     let folders = record_folders_of(&state.settings.lock().unwrap());
     replays::read_replay_files(&folders, &state.kept.replays)
 }
