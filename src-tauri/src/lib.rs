@@ -25,7 +25,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
-use wc3_controller_model::{Binding, ClientMessage, InputView, Light, PadPreset, ProfileChoice, TriggerShields};
+use wc3_controller_model::{Binding, ClientMessage, InputView, Light, PadKind, PadPreset, ProfileChoice, TriggerShields};
 
 use link::{ControllerState, Shared};
 use settings::{Settings, Store};
@@ -157,7 +157,7 @@ fn bindings(state: State<AppState>) -> Bindings {
     let settings = state.settings.lock().unwrap();
     let controller = state.link.snapshot.lock().unwrap().settings.clone();
     Bindings {
-        smashcraft: wc3_controller_model::fighter_bindings_with(controller.pad_preset, controller.triggers),
+        smashcraft: controller.bindings(PadKind::default()),
         smashcraft_menus: wc3_controller_model::menu_pointer_bindings(),
         any_map: if settings.any_map_bindings.is_empty() {
             wc3_controller_model::any_map_bindings()
@@ -174,7 +174,7 @@ fn bindings(state: State<AppState>) -> Bindings {
             .map(|(preset, label)| PadPresetBindings {
                 preset,
                 label,
-                bindings: wc3_controller_model::fighter_bindings_with(preset, controller.triggers),
+                bindings: wc3_controller_model::pad_bindings(preset, controller.triggers, PadKind::default()),
             })
             .collect(),
     }

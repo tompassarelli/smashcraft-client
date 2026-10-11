@@ -200,11 +200,7 @@ function mappingCard() {
     presetSelect.value = settings.pad_preset;
     triggerSelects.left.value = settings.triggers.left;
     triggerSelects.right.value = settings.triggers.right;
-    const selected = presetBindings.find((p) => p.preset === settings.pad_preset);
-    if (selected) smashcraftTable.replaceChildren(...rows(selected.bindings.map((b) => {
-      const side = b.control === "lt" ? "left" : b.control === "rt" ? "right" : undefined;
-      return side ? { ...b, action: settings.triggers[side] === "light" ? "Light shield" : "Shield" } : b;
-    })));
+    void api.bindings().then((bindings) => smashcraftTable.replaceChildren(...rows(bindings.smashcraft)));
   };
   const load = (bindings: Bindings, defaults?: Binding[]) => {
     presetBindings = bindings.pad_presets;
