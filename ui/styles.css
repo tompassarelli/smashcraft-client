@@ -58,7 +58,10 @@ button.quiet { margin-top: 10px; background: transparent; color: var(--muted); }
 .problem { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: #3a1712; color: #ffd2cb; }
 .turn-on { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 
-.pad { width: 100%; max-width: 420px; display: block; margin: 0 auto; }
+.mapping-card h2 { margin-bottom: 4px; }
+.pad-layout { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 24px; align-items: start; }
+.pad-view { min-width: 0; }
+.pad { width: 100%; max-height: 62vh; display: block; margin: 0 auto; }
 .pad .body { fill: #2f261c; stroke: var(--line); stroke-width: 2; }
 .pad .btn, .pad .stick { fill: #4a3d2e; stroke: #5d4d3a; stroke-width: 1.5; transition: fill 40ms; }
 .pad .btn.on, .pad .stick.on { fill: var(--gold); }
@@ -69,6 +72,36 @@ button.quiet { margin-top: 10px; background: transparent; color: var(--muted); }
 .pad .trigger-fill { fill: var(--gold); }
 .pad text { fill: var(--text); font-size: 10px; text-anchor: middle; pointer-events: none; font-weight: 700; }
 .pad text.tiny { font-size: 8px; fill: var(--text); }
+.pad .leaders polyline { fill: none; stroke: var(--muted); stroke-width: 1; opacity: 0.55; }
+.pad text.callout { font-size: 15px; font-weight: 400; }
+.pad text.callout.start { text-anchor: start; }
+.pad text.callout.end { text-anchor: end; }
+.pad .callout .tag { fill: var(--muted); font-size: 13px; font-weight: 600; }
+.pad .callout .title { fill: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.pad .callout .action { fill: var(--text); font-weight: 600; }
+.pad .callout.menus .tag { fill: #8fb3d9; }
+.pad .callout.menus .action { fill: #c9dcf0; font-weight: 500; }
+.pad .callout.none .action { fill: var(--grey); font-weight: 400; font-style: italic; }
+.pad-view .note { text-align: center; }
+.pad-settings { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 8px; background: var(--panel-2); }
+.setting { display: flex; flex-direction: column; gap: 6px; }
+.setting > span { font-size: 13px; color: var(--muted); font-weight: 600; }
+.setting.switch { display: grid; grid-template-columns: 24px 1fr; gap: 2px 8px; }
+.setting.switch > span { color: var(--text); font-size: 15px; font-weight: 500; }
+.shields { display: flex; gap: 10px; }
+.shields label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.pad-settings select { width: 100%; }
+.shields select { width: auto; }
+/* Narrow windows: the settings move under the picture as one row, so the callouts keep a readable size. */
+@media (max-width: 1100px) {
+  .pad-layout { grid-template-columns: 1fr; gap: 12px; }
+  .pad-settings { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 12px 28px; }
+  .pad-settings .setting { flex: 0 1 auto; }
+  .pad-settings select { width: auto; }
+}
+
+.status .rows { flex-direction: row; flex-wrap: wrap; }
+.status .row { flex: 1 1 220px; grid-template-columns: 14px auto 1fr; }
 
 .choices { display: flex; flex-direction: column; gap: 6px; }
 .choice { display: grid; grid-template-columns: 20px 100px 1fr; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); cursor: pointer; }
@@ -78,11 +111,6 @@ button.quiet { margin-top: 10px; background: transparent; color: var(--muted); }
 .switch small { grid-column: 2; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--gold); width: 16px; height: 16px; }
 
-.columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
-table.mapping { width: 100%; border-collapse: collapse; }
-.mapping th { text-align: left; font-weight: 500; color: var(--muted); padding: 5px 8px 5px 0; width: 45%; }
-.mapping td { padding: 5px 0; }
-.mapping tr + tr { border-top: 1px solid var(--line); }
 select { font: inherit; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 
 .play-wrap { position: relative; }

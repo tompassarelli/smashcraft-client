@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use wc3_controller_model::{Binding, ClientMessage, ProfileChoice};
+use wc3_controller_model::{ClientMessage, ProfileChoice};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -10,8 +10,6 @@ pub struct Settings {
     /// The player turned controller support on.
     pub controller_on: bool,
     pub profile: ProfileChoice,
-    /// The player's Any map bindings; the defaults when empty.
-    pub any_map_bindings: Vec<Binding>,
     /// The CustomMapData folders match records are read from; the ones found on this computer until the player sets them.
     pub record_folders: Option<Vec<String>>,
     /// Whether the player agreed to add Smashcraft's page to Warcraft III's menus (online play); none until asked.
@@ -64,7 +62,6 @@ mod tests {
         let settings = Settings {
             controller_on: true,
             profile: ProfileChoice::AnyMap,
-            any_map_bindings: wc3_controller_model::any_map_bindings(),
             record_folders: Some(vec!["/games/CustomMapData".into()]),
             menu_page: Some(true),
         };

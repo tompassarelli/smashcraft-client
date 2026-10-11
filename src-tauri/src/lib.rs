@@ -143,8 +143,6 @@ struct PadPresetBindings {
 struct Bindings {
     smashcraft: Vec<Binding>,
     smashcraft_menus: Vec<Binding>,
-    any_map: Vec<Binding>,
-    any_map_defaults: Vec<Binding>,
     profile: ProfileChoice,
     pad_preset: PadPreset,
     tap_jump: bool,
@@ -159,12 +157,6 @@ fn bindings(state: State<AppState>) -> Bindings {
     Bindings {
         smashcraft: controller.bindings(PadKind::default()),
         smashcraft_menus: wc3_controller_model::menu_pointer_bindings(),
-        any_map: if settings.any_map_bindings.is_empty() {
-            wc3_controller_model::any_map_bindings()
-        } else {
-            settings.any_map_bindings.clone()
-        },
-        any_map_defaults: wc3_controller_model::any_map_bindings(),
         profile: settings.profile,
         pad_preset: controller.pad_preset,
         tap_jump: controller.tap_jump,
@@ -178,12 +170,6 @@ fn bindings(state: State<AppState>) -> Bindings {
             })
             .collect(),
     }
-}
-
-#[tauri::command]
-fn set_any_map_bindings(state: State<AppState>, bindings: Vec<Binding>) -> Result<bool, String> {
-    state.update(|s| s.any_map_bindings = bindings.clone())?;
-    Ok(state.link.send(&ClientMessage::Bindings(bindings)))
 }
 
 #[tauri::command]
@@ -469,7 +455,6 @@ pub fn run() {
             set_tap_jump,
             set_trigger_shields,
             bindings,
-            set_any_map_bindings,
             start_with_computer,
             set_start_with_computer,
             play_state,

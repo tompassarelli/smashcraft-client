@@ -1,7 +1,7 @@
 import { h, svg } from "../dom";
 import {
-  PROFILE_CHOICES, PROFILE_LABEL, controlLabel, pressFromValue, pressLabel, pressOptions, pressValue, pressed, stickDot,
-  type Binding, type Bindings, type Button, type ControllerState, type ControllerSettings, type InputView, type ProfileChoice,
+  PROFILE_CHOICES, PROFILE_LABEL, controlLabel, pressed, stickDot,
+  type Binding, type Bindings, type Button, type Control, type ControllerState, type ControllerSettings, type InputView, type ProfileChoice,
 } from "../model";
 import { api } from "../tauri";
 
@@ -39,21 +39,90 @@ function statusCard(): { el: HTMLElement; render: (s: ControllerState) => void }
   return { el: h("section.card.status", {}, h("h2", {}, "Status"), rows, problem, off), render };
 }
 
-function padView(): { el: HTMLElement; render: (input: InputView) => void } {
-  const root = svg("svg", { viewBox: "0 0 360 210", class: "pad", role: "img", "aria-label": "Your controller's buttons and sticks" });
-  const body = svg("path", {
+/** One callout line: a control tag and what it does, from the bindings. */
+type Line = { tag: string; text: string; kind: "fight" | "menus" | "none" };
+
+/** The callout lines for each part of the pad, merging the fighting and menu bindings. */
+function callouts(fight: Binding[], menus: Binding[]): Map<string, Line[]> {
+  const of = (bindings: Binding[], control: Control) => bindings.find((b) => b.control === control)?.action;
+  const button = (control: Control): Line[] => {
+    const name = controlLabel(control);
+    const f = of(fight, control);
+    const m = of(menus, control);
+    const lines: Line[] = [];
+    if (f) lines.push({ tag: name, text: f, kind: "fight" });
+    if (m && m !== f) lines.push({ tag: f ? "Menus" : `${name} · Menus`, text: m, kind: "menus" });
+    return lines.length ? lines : [{ tag: name, text: "Not used", kind: "none" }];
+  };
+  // Four directions doing the same thing read as one line.
+  const directions = (prefix: string, bindings: Binding[], kind: Line["kind"], tag: string): Line[] => {
+    const arrows: [string, string][] = [["up", "↑"], ["down", "↓"], ["left", "←"], ["right", "→"]];
+    const actions = arrows.map(([d, arrow]) => [arrow, of(bindings, `${prefix}${d}` as Control)] as const);
+    if (actions.every(([, a]) => a === undefined)) return [];
+    if (actions.every(([, a]) => a === actions[0]![1])) return [{ tag, text: actions[0]![1]!, kind }];
+    return actions.map(([arrow, a]) => ({ tag: `${tag} ${arrow}`.trim(), text: a ?? "Not used", kind: a ? kind : "none" }));
+  };
+  const stick = (name: string, prefix: string, click?: Control): Line[] => {
+    const lines: Line[] = [{ tag: name, text: "", kind: "fight" }, ...directions(prefix, fight, "fight", ""), ...directions(prefix, menus, "menus", "Menus")];
+    if (click) lines.push(...button(click).map((l) => ({ ...l, tag: l.tag.replace(controlLabel(click), "Click") })));
+    return lines;
+  };
+  const map = new Map<string, Line[]>();
+  for (const c of ["lt", "rt", "lb", "rb", "back", "start", "a", "b", "x", "y"] as const) map.set(c, button(c));
+  map.set("left", stick("Left stick", "left_", "left_stick"));
+  map.set("right", stick("Right stick", "right_"));
+  const dpad = stick("D-pad", "dpad_");
+  map.set("dpad", dpad.length > 1 ? dpad : [{ tag: "D-pad", text: "Not used", kind: "none" }]);
+  return map;
+}
+
+// The pad drawing sits at PAD (scaled by S) with the callouts in columns either side and under it.
+const S = 1.2;
+const PAD = { x: 200, y: 0 };
+const at = (x: number, y: number): [number, number] => [PAD.x + x * S, PAD.y + y * S];
+const LINE = 19;
+const GAP = 10;
+const LEFT_X = PAD.x - 22;
+const RIGHT_X = PAD.x + 360 * S + 22;
+
+/** Where each callout points, and from which side; `via` routes a leader around other buttons. */
+const ANCHORS: { part: string; side: "left" | "right"; point: [number, number]; via?: [number, number] }[] = [
+  { part: "lt", side: "left", point: at(80, 8) },
+  { part: "lb", side: "left", point: at(55, 27) },
+  { part: "left", side: "left", point: at(57, 95) },
+  { part: "dpad", side: "left", point: at(98, 135) },
+  { part: "rt", side: "right", point: at(280, 8) },
+  { part: "rb", side: "right", point: at(305, 27) },
+  { part: "y", side: "right", point: at(296, 62) },
+  { part: "x", side: "right", point: at(262, 85), via: at(296, 79) },
+  { part: "b", side: "right", point: at(319, 85) },
+  { part: "a", side: "right", point: at(296, 108) },
+  { part: "right", side: "right", point: at(261, 140) },
+];
+/** Back and Start, between the grips, take their callouts straight down. */
+const BELOW: { part: string; point: [number, number]; anchor: "end" | "start" }[] = [
+  { part: "back", point: at(160, 82), anchor: "end" },
+  { part: "start", point: at(200, 82), anchor: "start" },
+];
+
+function padView(): { el: HTMLElement; render: (input: InputView) => void; label: (fight: Binding[], menus: Binding[]) => void } {
+  const root = svg("svg", { class: "pad", role: "img", "aria-label": "Your controller, each button labelled with what it does" });
+  const leaders = svg("g", { class: "leaders" });
+  const labels = svg("g", { class: "callouts" });
+  const pad = svg("g", { transform: `translate(${PAD.x} ${PAD.y}) scale(${S})` });
+  pad.append(svg("path", {
     d: "M70 40 Q180 20 290 40 Q345 50 350 120 Q355 190 310 195 Q280 198 255 160 L105 160 Q80 198 50 195 Q5 190 10 120 Q15 50 70 40Z",
     class: "body",
-  });
-  root.append(body);
+  }));
+  root.append(pad, leaders);
+  const controls = svg("g", { transform: `translate(${PAD.x} ${PAD.y}) scale(${S})` });
+  root.append(controls, labels);
   const trigger = (x: number, label: string) => {
-    const g = svg("g");
-    g.append(svg("rect", { x, y: 2, width: 60, height: 12, rx: 4, class: "trigger-bg" }));
+    controls.append(svg("rect", { x, y: 2, width: 60, height: 12, rx: 4, class: "trigger-bg" }));
     const fill = svg("rect", { x, y: 2, width: 0, height: 12, rx: 4, class: "trigger-fill" });
     const text = svg("text", { x: x + 30, y: 11.5, class: "tiny" });
     text.textContent = label;
-    g.append(fill, text);
-    root.append(g);
+    controls.append(fill, text);
     return fill;
   };
   const lt = trigger(50, "LT");
@@ -61,11 +130,11 @@ function padView(): { el: HTMLElement; render: (input: InputView) => void } {
   const buttons = new Map<Button, SVGElement>();
   const button = (name: Button, shape: SVGElement, label?: [number, number, string]) => {
     shape.classList.add("btn");
-    root.append(shape);
+    controls.append(shape);
     if (label) {
       const text = svg("text", { x: label[0], y: label[1], class: "label" });
       text.textContent = label[2];
-      root.append(text);
+      controls.append(text);
     }
     buttons.set(name, shape);
   };
@@ -80,9 +149,9 @@ function padView(): { el: HTMLElement; render: (input: InputView) => void } {
   const dpad: [Button, number, number][] = [["dpad_up", 120, 120], ["dpad_down", 120, 150], ["dpad_left", 105, 135], ["dpad_right", 135, 135]];
   for (const [name, x, y] of dpad) button(name, svg("rect", { x: x - 7, y: y - 7, width: 14, height: 14, rx: 2 }));
   const stick = (cx: number, cy: number, click: Button) => {
-    root.append(svg("circle", { cx, cy, r: 26, class: "stick-well" }));
+    controls.append(svg("circle", { cx, cy, r: 26, class: "stick-well" }));
     const knob = svg("circle", { cx, cy, r: 13, class: "stick" });
-    root.append(knob);
+    controls.append(knob);
     buttons.set(click, knob);
     return (value: [number, number]) => {
       const [dx, dy] = stickDot(value);
@@ -100,9 +169,52 @@ function padView(): { el: HTMLElement; render: (input: InputView) => void } {
     left(input.left);
     right(input.right);
   };
+  const text = (x: number, y: number, anchor: "start" | "end", line: Line) => {
+    const t = svg("text", { x, y, class: `callout ${anchor} ${line.kind}` });
+    const tag = svg("tspan", { class: line.text ? "tag" : "title" });
+    tag.textContent = line.text ? `${line.tag} ` : line.tag;
+    t.append(tag);
+    if (line.text) {
+      const action = svg("tspan", { class: "action" });
+      action.textContent = line.text;
+      t.append(action);
+    }
+    labels.append(t);
+  };
+  const label = (fight: Binding[], menus: Binding[]) => {
+    const lines = callouts(fight, menus);
+    leaders.replaceChildren();
+    labels.replaceChildren();
+    let bottom = 0;
+    for (const side of ["left", "right"] as const) {
+      let next = -Infinity;
+      for (const { part, point, via } of ANCHORS.filter((a) => a.side === side)) {
+        const block = lines.get(part) ?? [];
+        const first = Math.max(point[1] + 5 - ((block.length - 1) * LINE) / 2, next);
+        const x = side === "left" ? LEFT_X : RIGHT_X;
+        block.forEach((line, i) => text(x, first + i * LINE, side === "left" ? "end" : "start", line));
+        const y = first - 5;
+        const elbow = side === "left" ? x + 8 : x - 8;
+        const points = [point, ...(via ? [via] : []), [elbow, y], [side === "left" ? x + 4 : x - 4, y]];
+        leaders.append(svg("polyline", { points: points.map((p) => p.join(",")).join(" ") }));
+        next = first + block.length * LINE + GAP;
+        bottom = Math.max(bottom, next - GAP);
+      }
+    }
+    const below = PAD.y + 205 * S + 18;
+    for (const { part, point, anchor } of BELOW) {
+      const block = lines.get(part) ?? [];
+      const x = point[0] + (anchor === "end" ? 6 : -6);
+      block.forEach((line, i) => text(x, below + i * LINE, anchor, line));
+      leaders.append(svg("polyline", { points: `${point[0]},${point[1]} ${point[0]},${below - 14}` }));
+      bottom = Math.max(bottom, below + block.length * LINE);
+    }
+    root.setAttribute("viewBox", `0 -12 ${RIGHT_X + 190} ${bottom + 12}`);
+  };
   render(NEUTRAL);
+  label([], []);
   const hint = h("p.note", {}, "Press buttons and move the sticks: they light up here.");
-  return { el: h("section.card.input", {}, h("h2", {}, "Your controller"), root as unknown as HTMLElement, hint), render };
+  return { el: h("div.pad-view", {}, root as unknown as HTMLElement, hint), render, label };
 }
 
 function profileCard(onChoice: (choice: ProfileChoice) => void) {
@@ -123,12 +235,11 @@ function profileCard(onChoice: (choice: ProfileChoice) => void) {
   };
 }
 
-function mappingCard() {
-  const smashcraftTable = h("table.mapping");
+function mappingCard(pad: ReturnType<typeof padView>) {
   const presetSelect = h("select", { "aria-label": "Smashcraft pad preset" });
   const triggerSelects = { left: h("select", { "aria-label": "Left trigger shield" }), right: h("select", { "aria-label": "Right trigger shield" }) };
-  for (const [side, select] of Object.entries(triggerSelects)) {
-    select.append(h("option", { value: "full" }, "Full shield"), h("option", { value: "light" }, "Light shield"));
+  for (const select of Object.values(triggerSelects)) {
+    select.append(h("option", { value: "full" }, "Full"), h("option", { value: "light" }, "Light"));
     select.addEventListener("change", async () => {
       select.disabled = true;
       try {
@@ -156,43 +267,7 @@ function mappingCard() {
       presetSelect.disabled = false;
     }
   });
-  const menusTable = h("table.mapping");
-  const anyMapTable = h("table.mapping");
-  const reset = h("button.quiet", { type: "button" }, "Back to the default keys");
-  let anyMap: Binding[] = [];
-  const save = async () => {
-    await api.setAnyMapBindings(anyMap);
-  };
-  const rows = (bindings: Binding[]) => {
-    // A stick's four directions doing the same thing read as one row.
-    const seen = new Set<string>();
-    return bindings.flatMap((b) => {
-      const stick = /^(left|right)_/.exec(b.control)?.[1];
-      const label = stick !== undefined && b.press === "pointer" ? `${stick === "left" ? "Left" : "Right"} stick` : controlLabel(b.control);
-      if (seen.has(label)) return [];
-      seen.add(label);
-      return [h("tr", {}, h("th", {}, label), h("td", {}, b.action))];
-    });
-  };
-  const renderSmashcraft = (bindings: Binding[], menus: Binding[]) => {
-    smashcraftTable.replaceChildren(...rows(bindings));
-    menusTable.replaceChildren(...rows(menus));
-  };
-  const renderAnyMap = () => {
-    const options = pressOptions();
-    anyMapTable.replaceChildren(
-      ...anyMap.map((b, i) => {
-        const select = h("select", { "aria-label": `${controlLabel(b.control)} presses` });
-        for (const [value, label] of options) select.append(h("option", { value }, label));
-        select.value = pressValue(b.press);
-        select.addEventListener("change", () => {
-          anyMap[i] = { ...b, press: pressFromValue(select.value), action: pressLabel(pressFromValue(select.value)) };
-          void save();
-        });
-        return h("tr", {}, h("th", {}, controlLabel(b.control)), h("td", {}, select));
-      }),
-    );
-  };
+  const label = (bindings: Bindings) => pad.label(bindings.smashcraft, bindings.smashcraft_menus);
   let currentSettings: ControllerSettings | undefined;
   const renderSettings = (settings: ControllerSettings) => {
     currentSettings = settings;
@@ -200,43 +275,26 @@ function mappingCard() {
     presetSelect.value = settings.pad_preset;
     triggerSelects.left.value = settings.triggers.left;
     triggerSelects.right.value = settings.triggers.right;
-    void api.bindings().then((bindings) => smashcraftTable.replaceChildren(...rows(bindings.smashcraft)));
+    void api.bindings().then(label);
   };
-  const load = (bindings: Bindings, defaults?: Binding[]) => {
+  const load = (bindings: Bindings) => {
     presetBindings = bindings.pad_presets;
     presetSelect.replaceChildren(...presetBindings.map((p) => h("option", { value: p.preset }, p.label)));
-    renderSmashcraft(bindings.smashcraft, bindings.smashcraft_menus);
+    label(bindings);
     renderSettings(currentSettings ?? bindings);
-    anyMap = (defaults ?? bindings.any_map).map((b) => ({ ...b }));
-    renderAnyMap();
   };
-  let defaults: Binding[] | undefined;
-  reset.addEventListener("click", async () => {
-    if (!defaults) return;
-    anyMap = defaults.map((b) => ({ ...b }));
-    renderAnyMap();
-    await save();
-  });
-  const el = h(
-    "section.card.mapping-card",
+  const settings = h(
+    "div.pad-settings",
     {},
-    h("h2", {}, "Buttons"),
-    h("div.columns", {},
-      h("div", {}, h("h3", {}, "Smashcraft"), h("label", {}, "Layout ", presetSelect),
-        h("label.switch", {}, tapJump, h("span", {}, "Tap jump"), h("small", {}, "Push the left stick up to jump.")),
-        h("label", {}, "Left trigger ", triggerSelects.left), h("label", {}, "Right trigger ", triggerSelects.right),
-        smashcraftTable, h("h3", {}, "Smashcraft menus"), menusTable),
-      h("div", {}, h("h3", {}, "Any map"), anyMapTable, reset),
-    ),
+    h("label.setting", {}, h("span", {}, "Layout"), presetSelect),
+    h("label.setting.switch", {}, tapJump, h("span", {}, "Tap jump"), h("small", {}, "Push the left stick up to jump.")),
+    h("div.setting", {}, h("span", {}, "Trigger shields"),
+      h("div.shields", {}, h("label", {}, "LT ", triggerSelects.left), h("label", {}, "RT ", triggerSelects.right))),
+    // Slot for the Right-stick mode setting, added once wc3-controller-model supports it.
+    h("div.setting.right-stick-mode-slot", { hidden: true }),
   );
-  return {
-    el,
-    renderSettings,
-    load: (bindings: Bindings, anyMapDefaults: Binding[]) => {
-      defaults = anyMapDefaults;
-      load(bindings);
-    },
-  };
+  const el = h("section.card.mapping-card", {}, h("h2", {}, "Smashcraft buttons"), h("div.pad-layout", {}, pad.el, settings));
+  return { el, renderSettings, load };
 }
 
 function settingsCard() {
@@ -253,6 +311,7 @@ function settingsCard() {
   return h(
     "section.card.settings",
     {},
+    h("h2", {}, "App"),
     h("label.switch", {}, toggle, h("span", {}, "Start with my computer"), h("small", {}, "Smashcraft waits in the tray, ready for your controller.")),
   );
 }
@@ -261,10 +320,11 @@ export function controllerPage(root: HTMLElement): () => void {
   const status = statusCard();
   const pad = padView();
   const profile = profileCard((choice) => void api.setProfile(choice));
-  const mapping = mappingCard();
+  const mapping = mappingCard(pad);
   root.append(
-    h("div.grid", {}, status.el, pad.el, profile.el, settingsCard()),
+    status.el,
     mapping.el,
+    h("div.grid", {}, profile.el, settingsCard()),
   );
   let link: ControllerState["link"] = "off";
   const onState = (s: ControllerState) => {
@@ -277,7 +337,7 @@ export function controllerPage(root: HTMLElement): () => void {
   void api.controllerState().then(onState);
   void api.bindings().then((b) => {
     profile.select(b.profile);
-    mapping.load(b, b.any_map_defaults);
+    mapping.load(b);
   });
   const unlisten = [api.onController(onState), api.onInput((input) => link === "connected" && pad.render(input))];
   return () => unlisten.forEach((p) => void p.then((stop) => stop()));
