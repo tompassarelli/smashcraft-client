@@ -1,6 +1,6 @@
 import { h, svg } from "../dom";
 import {
-  PROFILE_CHOICES, PROFILE_LABEL, controlLabel, pressFromValue, pressLabel, pressOptions, pressValue, pressed, stickDot, smashcraftActionLabel,
+  PROFILE_CHOICES, PROFILE_LABEL, controlLabel, pressFromValue, pressLabel, pressOptions, pressValue, pressed, stickDot,
   type Binding, type Bindings, type Button, type ControllerState, type ControllerSettings, type InputView, type ProfileChoice,
 } from "../model";
 import { api } from "../tauri";
@@ -163,7 +163,7 @@ function mappingCard() {
   const save = async () => {
     await api.setAnyMapBindings(anyMap);
   };
-  const rows = (bindings: Binding[], smashcraft = false) => {
+  const rows = (bindings: Binding[]) => {
     // A stick's four directions doing the same thing read as one row.
     const seen = new Set<string>();
     return bindings.flatMap((b) => {
@@ -171,11 +171,11 @@ function mappingCard() {
       const label = stick !== undefined && b.press === "pointer" ? `${stick === "left" ? "Left" : "Right"} stick` : controlLabel(b.control);
       if (seen.has(label)) return [];
       seen.add(label);
-      return [h("tr", {}, h("th", {}, label), h("td", {}, smashcraft ? smashcraftActionLabel(b) : b.action))];
+      return [h("tr", {}, h("th", {}, label), h("td", {}, b.action))];
     });
   };
   const renderSmashcraft = (bindings: Binding[], menus: Binding[]) => {
-    smashcraftTable.replaceChildren(...rows(bindings, true));
+    smashcraftTable.replaceChildren(...rows(bindings));
     menusTable.replaceChildren(...rows(menus));
   };
   const renderAnyMap = () => {
@@ -204,7 +204,7 @@ function mappingCard() {
     if (selected) smashcraftTable.replaceChildren(...rows(selected.bindings.map((b) => {
       const side = b.control === "lt" ? "left" : b.control === "rt" ? "right" : undefined;
       return side ? { ...b, action: settings.triggers[side] === "light" ? "Light shield" : "Shield" } : b;
-    }), true));
+    })));
   };
   const load = (bindings: Bindings, defaults?: Binding[]) => {
     presetBindings = bindings.pad_presets;

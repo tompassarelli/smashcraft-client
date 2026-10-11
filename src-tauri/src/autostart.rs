@@ -64,7 +64,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_entry_starts_the_launcher_hidden_in_the_tray() {
+    fn the_entry_follows_the_xdg_desktop_entry_spec_and_starts_the_launcher_hidden_in_the_tray() {
         let entry = desktop_entry(Path::new("/home/p/.local/share/smashcraft-build-inputs/smashcraft-client/smashcraft"));
         assert!(entry.contains("Exec=\"/home/p/.local/share/smashcraft-build-inputs/smashcraft-client/smashcraft\" --hidden\n"));
         assert!(entry.starts_with("[Desktop Entry]\nType=Application\n"));

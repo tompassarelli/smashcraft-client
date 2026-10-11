@@ -172,16 +172,48 @@ mod tests {
         assert_eq!(manifest_serial("smashcraft-replay-12.txt"), Some(12));
     }
 
+    /// xorshift64: the same cases on every run.
+    fn random(mut seed: u64) -> impl FnMut(u64) -> u64 {
+        move |below| {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed % below
+        }
+    }
+
     #[test]
-    fn keeps_each_version_once_and_refuses_paths() {
-        let kept = Kept::new(&temp("sims"));
-        assert_eq!(kept.sim("abc123"), None);
-        kept.keep_sim("abc123", "first").unwrap();
-        kept.keep_sim("abc123", "second").unwrap();
-        assert_eq!(kept.sim("abc123").as_deref(), Some("first"));
-        assert_eq!(kept.sims(), ["abc123"]);
-        assert!(kept.keep_sim("../escape", "x").is_err());
-        assert!(kept.keep_replay("../escape.txt", "x").is_err());
-        assert!(kept.keep_replay("a/b.txt", "x").is_err());
+    fn whatever_name_it_is_given_the_client_writes_only_inside_its_own_folders_and_keeps_each_version_once_500_seeded_names() {
+        let data = temp("kept");
+        let kept = Kept::new(&data);
+        let inner = kept.replays.join("a");
+        std::fs::create_dir_all(&inner).unwrap();
+        let mut next = random(0x2545_f491_4f6c_dd1d);
+        let parts = ["a", "B7", "-", "_", ".", "..", "/", "\\", "txt", ".txt", ".js", "~", " ", "%2e"];
+        for i in 0..500 {
+            let middle: String = (0..1 + next(4)).map(|_| parts[next(parts.len() as u64) as usize]).collect();
+            let name = format!("{}{middle}{}", ["", "a/", "../", "/"][next(4) as usize], [".txt", ".js", ""][next(3) as usize]);
+            if let Ok(path) = kept.keep_replay(&name, "replay") {
+                assert_eq!(Path::new(&path).parent(), Some(kept.replays.as_path()), "{name}");
+            }
+            let version = format!("{name}{i}");
+            if kept.keep_sim(&version, "first").is_ok() {
+                kept.keep_sim(&version, "second").unwrap();
+                assert_eq!(kept.sim(&version).as_deref(), Some("first"), "{version}");
+            }
+        }
+        let mut stack = vec![data.clone()];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    assert!(path == kept.replays || path == inner || path == data.join("sims"), "{} was created", path.display());
+                    stack.push(path);
+                }
+            }
+        }
+        assert!(kept.keep_replay("../escape.txt", "x").is_err() && kept.keep_sim("../escape", "x").is_err());
+        assert!(!data.parent().unwrap().join("escape.txt").exists());
+        std::fs::remove_dir_all(data).unwrap();
     }
 }

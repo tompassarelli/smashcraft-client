@@ -155,7 +155,7 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn arguments_name_the_step_and_the_code() {
+    fn arguments_follow_the_wisp_online_cli_setup_host_repair_and_join_code() {
         assert_eq!(online_args(Mode::Setup, None, true), ["wisp", "online", "setup"]);
         assert_eq!(online_args(Mode::Host, None, true), ["wisp", "online", "host", "--repair"]);
         assert_eq!(online_args(Mode::Join, Some(" abcd-efgh "), false), ["wisp", "online", "join", "abcd-efgh"]);

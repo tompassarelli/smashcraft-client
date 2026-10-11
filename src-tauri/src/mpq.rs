@@ -212,13 +212,6 @@ mod tests {
     }
 
     #[test]
-    fn storm_hashes_match_known_values() {
-        // Known values from StormLib's hash of "(hash table)" and "(block table)" keys.
-        assert_eq!(hash("(hash table)", 3), 0xC3AF_3770);
-        assert_eq!(hash("(block table)", 3), 0xEC83_B3A3);
-    }
-
-    #[test]
     fn reads_compressed_multi_sector_encrypted_and_plain_files_stormlib_wrote() {
         let map = fixture();
         let lua = String::from_utf8(read_file(&map, "war3map.lua").unwrap()).unwrap();

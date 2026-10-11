@@ -298,45 +298,69 @@ mod tests {
     use std::sync::mpsc;
     use wc3_controller_model::{Game, Pad, Phase, Profile, ProfileChoice, Session};
 
-    #[test]
-    fn off_until_turned_on_and_never_started_when_not_wanted() {
-        let mut sup = Supervise::new(false);
-        let t = Instant::now();
-        assert_eq!(sup.unreachable(t), Action::None);
-        assert_eq!(sup.link, Link::Off);
-        sup.turn_on();
-        assert_eq!(sup.link, Link::Starting);
-        assert_eq!(sup.unreachable(t), Action::Start);
+    /// xorshift64: the same cases on every run.
+    fn random(mut seed: u64) -> impl FnMut(u64) -> u64 {
+        move |below| {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed % below
+        }
     }
 
     #[test]
-    fn a_started_service_gets_a_grace_period_then_retries_then_gives_up() {
-        let mut sup = Supervise::new(true);
-        let t = Instant::now();
-        assert_eq!(sup.unreachable(t), Action::Start);
-        assert_eq!(sup.unreachable(t + Duration::from_secs(5)), Action::None);
-        assert_eq!(sup.link, Link::Starting);
-        assert_eq!(sup.unreachable(t + START_GRACE), Action::Start);
-        assert_eq!(sup.unreachable(t + START_GRACE * 2), Action::Start);
-        assert_eq!(sup.unreachable(t + START_GRACE * 3), Action::None);
-        assert!(sup.failed);
-        let state = ControllerState::new(&sup, &Snapshot::default());
-        assert_eq!(state.view.problem.as_deref(), Some(START_FAILED));
-        assert_eq!(state.view.overall, Light::Red);
-        sup.turn_on();
-        assert!(!sup.failed);
-        assert_eq!(sup.unreachable(t + START_GRACE * 4), Action::Start);
-    }
-
-    #[test]
-    fn connecting_clears_a_failure_and_resets_attempts() {
-        let mut sup = Supervise::new(true);
-        sup.start_failed();
-        sup.connected();
-        assert_eq!(sup.link, Link::Connected);
-        assert!(!sup.failed);
-        let t = Instant::now();
-        assert_eq!(sup.unreachable(t), Action::Start, "a lost service is started again");
+    fn the_supervisor_starts_only_when_wanted_waits_out_each_grace_period_and_gives_up_after_its_attempts_2000_seeded_runs() {
+        let mut next = random(0x9e37_79b9_7f4a_7c15);
+        for _ in 0..2000 {
+            let wanted = next(2) == 0;
+            let mut sup = Supervise::new(wanted);
+            assert_eq!(sup.link, if wanted { Link::Starting } else { Link::Off });
+            let base = Instant::now();
+            let mut now = base;
+            let (mut want, mut failed, mut starts, mut last): (bool, bool, u32, Option<Instant>) = (wanted, false, 0, None);
+            for _ in 0..40 {
+                match next(10) {
+                    0 => {
+                        sup.turn_on();
+                        (want, failed, starts, last) = (true, false, 0, None);
+                        assert_ne!(sup.link, Link::Off);
+                    }
+                    1 => {
+                        sup.connected();
+                        (failed, starts, last) = (false, 0, None);
+                        assert_eq!(sup.link, Link::Connected);
+                    }
+                    2 => {
+                        sup.start_failed();
+                        failed = true;
+                        assert_eq!(sup.link, Link::Off);
+                    }
+                    _ => {
+                        now += Duration::from_millis(next(START_GRACE.as_millis() as u64 * 2));
+                        let action = sup.unreachable(now);
+                        let waiting = last.is_some_and(|at| now.duration_since(at) < START_GRACE);
+                        if !want || failed {
+                            assert_eq!((action, sup.link), (Action::None, Link::Off), "never started when not wanted or after giving up");
+                        } else if waiting {
+                            assert_eq!((action, sup.link), (Action::None, Link::Starting), "a started service gets its grace period");
+                        } else if starts >= START_ATTEMPTS {
+                            assert_eq!((action, sup.link), (Action::None, Link::Off), "gives up after its attempts");
+                            failed = true;
+                        } else {
+                            assert_eq!((action, sup.link), (Action::Start, Link::Starting), "starts when wanted and not waiting");
+                            starts += 1;
+                            last = Some(now);
+                        }
+                    }
+                }
+                assert_eq!(sup.failed, failed);
+                let state = ControllerState::new(&sup, &Snapshot::default());
+                assert_eq!(state.view.problem.as_deref() == Some(START_FAILED), failed);
+                if failed {
+                    assert_eq!(state.view.overall, Light::Red);
+                }
+            }
+        }
     }
 
     struct Recorder(Mutex<mpsc::Sender<ControllerState>>, Mutex<mpsc::Sender<InputView>>);

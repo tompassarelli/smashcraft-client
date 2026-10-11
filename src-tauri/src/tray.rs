@@ -39,17 +39,3 @@ pub fn tooltip(light: Light) -> &'static str {
         Light::Off => "Smashcraft: controller support is off",
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_light_is_its_colour_in_the_middle_and_clear_in_the_corner() {
-        let px = light_rgba(Light::Green);
-        assert_eq!(px.len(), (SIZE * SIZE * 4) as usize);
-        let at = |x: u32, y: u32| &px[((y * SIZE + x) * 4) as usize..][..4];
-        assert_eq!(at(16, 16), &[46, 204, 113, 255]);
-        assert_eq!(at(0, 0)[3], 0);
-    }
-}

@@ -69,7 +69,6 @@ const CONTROL_LABEL: Record<Control, string> = {
   right_up: "Right stick up", right_down: "Right stick down", right_left: "Right stick left", right_right: "Right stick right",
 };
 
-export const smashcraftActionLabel = (binding: Binding): string => binding.control === "lb" ? "Tilt" : binding.action;
 
 export const controlLabel = (control: Control): string => CONTROL_LABEL[control];
 
