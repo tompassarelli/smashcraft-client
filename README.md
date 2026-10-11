@@ -30,7 +30,7 @@ Only Smashcraft's [client interface](https://github.com/tompassarelli/smashcraft
   `smashcraft.ref` (`bun scripts/kit.ts` fetches that commit's ts/ into
   .smashcraft/ and writes ui/kit/; `SMASHCRAFT_KIT=DIR` uses a kit you already
   have): the Replays page's simulation `sim.js`, its types, `viewer.lua` and
-  test fixtures;
+  the recorded fixtures the replay tests play (AGENTS.md);
 - at run time, the match records and replays the map writes into
   CustomMapData, and the maps in Warcraft III's Maps folders;
 - for Online only, Smashcraft's tools (`SMASHCRAFT_TS`).
@@ -87,7 +87,8 @@ per matchup, KOs and falls per match and damage dealt per match. Parsing,
 ingest and stats are in ui/src/records.ts and
 ui/src/stats.ts; the Rust side
 (src-tauri/src/records.rs) only reads folders and keeps the
-store. Fixture folders: ui/test/fixtures/records/.
+store. Fixture folders: ui/test/fixtures/records/, the recorded scenarios the
+records tests replay (AGENTS.md).
 
 ## Online
 
@@ -146,6 +147,8 @@ Warcraft III's Replays menu. A Warcraft replay covers the whole game, every
 rematch included (src-tauri/src/warcraft_replays.rs).
 
 ## Build, test, install
+
+Tests follow AGENTS.md: every permanent test is one of its five kinds.
 
 ```sh
 bun scripts/kit.ts       # ui/kit/ from the Smashcraft commit in smashcraft.ref
