@@ -44,7 +44,7 @@ test("cargo is found in the documented order: CARGO, PATH, the pinned rustup too
       : onPath.cargo !== undefined ? { command: [onPath.cargo] }
       : files.includes(join(pinned, "cargo")) ? { command: [join(pinned, "cargo")], path: pinned }
       : onPath.rustup !== undefined ? { command: [onPath.rustup, "run", channel, "cargo"] }
-      : files.includes(storeRustup) ? { command: [storeRustup, "run", channel, "cargo"] }
+      : files.includes(storeRustup) ? { command: [join("/nix/store", "90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0", "bin/rustup"), "run", channel, "cargo"] }
       : undefined;
     expect(findCargo(search)).toEqual(expected);
   }
