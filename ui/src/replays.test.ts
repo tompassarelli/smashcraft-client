@@ -99,11 +99,39 @@ test("a replay from a version the client doesn't hold names that version; a kept
   expect(await openForWatching(["hello"], simulations())).toEqual({ problem: `This file isn't a Smashcraft replay (not a repro: its first line isn't "wisp-repro 1").` });
 });
 
-test("a kept Warcraft game is listed under each match whose record it holds, in the same folder", () => {
-  const entry = (folder: string, serial: number, parts?: number) =>
-    ({ key: `${folder}/smashcraft-replay-${serial}.txt`, folder, name: `smashcraft-replay-${serial}.txt`, build: "b", version: "v", serial, frames: 1, modified: 1, ...(parts === undefined ? {} : { parts }) }) as const;
-  const game: WarcraftGame = { file: "warcraft-20261007-023258-abc.w3g", hash: "abc", started: 0, ended: 1, folder: "a", replays: "a/../BattleNet/1/Replays", records: ["smashcraft-match-2.txt", "smashcraft-match-3.txt"] };
-  const games = [game];
-  expect([entry("a", 2, 1), entry("a", 3, 4), entry("a", 4, 1), entry("b", 2, 1), entry("a", 2)].map((e) => warcraftGameOf(e, games)?.file)).toEqual([game.file, game.file, undefined, undefined, undefined]);
-  expect(warcraftName(new Date(2026, 9, 7, 10, 32, 58).getTime())).toBe("Smashcraft 2026-10-07 10.32");
+/** mulberry32: the same cases on every run. */
+const random = (seed: number) => () => {
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+test("a kept Warcraft game is listed under a tape replay exactly when, in the same folder, it holds that match's record (seed 8, 1000 cases)", () => {
+  const next = random(8);
+  const pick = <T>(xs: readonly T[]) => xs[Math.floor(next() * xs.length)]!;
+  for (let i = 0; i < 1000; i++) {
+    const games: WarcraftGame[] = Array.from({ length: Math.floor(next() * 3) }, (_, g) => ({
+      file: `warcraft-${g}.w3g`, hash: `${g}`, started: 0, ended: 1, folder: pick(["a", "b"]), replays: "r",
+      records: [1, 2, 3, 4].filter(() => next() < 0.4).map((n) => `smashcraft-match-${n}.txt`),
+    }));
+    const folder = pick(["a", "b"]);
+    const serial = pick([1, 2, 3, 4]);
+    const parts = pick([undefined, 1, 4]);
+    const entry = { key: `${folder}/x`, folder, name: "x", build: "b", version: "v", serial, frames: 1, modified: 1, ...(parts === undefined ? {} : { parts }) };
+    const holders = games.filter((game) => game.folder === folder && game.records.includes(`smashcraft-match-${serial}.txt`));
+    expect(warcraftGameOf(entry, games)).toBe(parts === undefined ? undefined : holders[0]);
+  }
+});
+
+test("a kept game's Replays-menu name reads back as the local minute it ended (seed 9, 1000 cases)", () => {
+  const next = random(9);
+  for (let i = 0; i < 1000; i++) {
+    const ended = Math.floor(next() * 4102444800000);
+    const name = /^Smashcraft (\d{4})-(\d{2})-(\d{2}) (\d{2})\.(\d{2})$/.exec(warcraftName(ended));
+    expect(name).not.toBeNull();
+    const [, y, mo, d, h, mi] = name!.map(Number);
+    const at = new Date(ended);
+    expect([y, mo, d, h, mi]).toEqual([at.getFullYear(), at.getMonth() + 1, at.getDate(), at.getHours(), at.getMinutes()]);
+  }
 });

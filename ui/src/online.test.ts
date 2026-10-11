@@ -1,28 +1,44 @@
 import { expect, test } from "bun:test";
+import type { OnlineMode } from "./model";
 import { looksLikeCode, onlineView } from "./online";
 
-const state = (mode: "host" | "join" | "setup", lines: string[], running = true, finished: boolean | null = null) => ({ available: true, running, mode, lines, finished });
+/** mulberry32: the same cases on every run. */
+const random = (seed: number) => () => {
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
 
-test("a host shows its code and may start now until the match loads", () => {
-  const waiting = onlineView(state("host", ["Join code: ABCD-EFGH", "Waiting for your opponent"]));
-  expect(waiting).toEqual({ code: "ABCD-EFGH", steps: ["Waiting for your opponent"], canStartNow: true, busy: true, failed: false });
-  expect(onlineView(state("host", ["Join code: ABCD-EFGH", "Starting the match", "Loading the match"])).canStartNow).toBe(false);
-  expect(onlineView(state("host", ["Join code: ABCD-EFGH", "In the match"], false, true)).canStartNow).toBe(false);
+test("a run's view: only a host shows its join code, may start now only while running with a code and before the match loads, and a run fails only when it finished badly (seed 6, 2000 cases)", () => {
+  const next = random(6);
+  const pick = <T>(xs: readonly T[]) => xs[Math.floor(next() * xs.length)]!;
+  const LINES = ["Join code: ABCD-EFGH", "Join code: WXYZ-1234", "Waiting for your opponent", "Starting the match", "Loading the match", "In the match", "Couldn't join that game. Check the code with your opponent."];
+  for (let i = 0; i < 2000; i++) {
+    const mode = pick<OnlineMode | null>(["host", "join", "setup", null]);
+    const lines = Array.from({ length: Math.floor(next() * 5) }, () => pick(LINES));
+    const running = next() < 0.5;
+    const finished = pick([null, true, false]);
+    const view = onlineView({ available: true, running, mode, lines, finished });
+    const codes = lines.filter((line) => line.startsWith("Join code: ")).map((line) => line.slice("Join code: ".length));
+    expect(view.code).toBe(mode === "host" ? codes[0] : undefined);
+    expect(view.steps).toEqual(lines.filter((line) => !line.startsWith("Join code: ")));
+    expect(view.canStartNow).toBe(mode === "host" && running && codes.length > 0 && !lines.includes("Loading the match"));
+    expect(view.busy).toBe(running);
+    expect(view.failed).toBe(finished === false);
+  }
 });
 
-test("before Warcraft III creates the game there is no code to show", () => {
-  expect(onlineView(state("host", [])).code).toBeUndefined();
-  expect(onlineView(state("host", [])).canStartNow).toBe(false);
-});
-
-test("a guest never shows a code and a failed run reads as failed", () => {
-  const failed = onlineView(state("join", ["Couldn't join that game. Check the code with your opponent."], false, false));
-  expect(failed.code).toBeUndefined();
-  expect(failed.canStartNow).toBe(false);
-  expect(failed.failed).toBe(true);
-});
-
-test("codes are sent once they have eight characters", () => {
-  expect(looksLikeCode("abcd-efgh")).toBe(true);
-  expect(looksLikeCode("ABCD EFG")).toBe(false);
+test("a typed code is sent exactly when it has eight characters besides spaces and dashes (seed 7, 2000 cases)", () => {
+  const next = random(7);
+  const ALNUM = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefgh0123456789";
+  for (let i = 0; i < 2000; i++) {
+    const count = Math.floor(next() * 12);
+    let typed = "";
+    for (let c = 0; c < count; c++) {
+      while (next() < 0.2) typed += next() < 0.5 ? "-" : " ";
+      typed += ALNUM[Math.floor(next() * ALNUM.length)];
+    }
+    expect(looksLikeCode(typed)).toBe(count === 8);
+  }
 });

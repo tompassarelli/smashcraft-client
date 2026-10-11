@@ -1,30 +1,61 @@
 import { expect, test } from "bun:test";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { type CargoSearch, findCargo, pinnedChannel } from "./cargo";
 
-const search = (files: string[], onPath: Record<string, string> = {}, env: Record<string, string> = {}): CargoSearch => ({
-  env, home: "/home/p", channel: "1.96.1", hosts: ["x86_64-unknown-linux-gnu"], stores: ["/nix/store"],
-  exists: (path) => files.includes(path),
-  list: (dir) => files.filter((f) => f.startsWith(`${dir}/`)).map((f) => f.slice(dir.length + 1).split("/")[0]!),
-  which: (command) => onPath[command] ?? null,
+/** mulberry32: the same cases on every run. */
+const random = (seed: number) => () => {
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+test("cargo is found in the documented order: CARGO, PATH, the pinned rustup toolchain, then a rustup running that channel (seed 1, 500 cases)", () => {
+  const next = random(1);
+  const coin = () => next() < 0.5;
+  const pick = <T>(xs: readonly T[]) => xs[Math.floor(next() * xs.length)]!;
+  const home = "/home/p";
+  const hosts = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"];
+  for (let i = 0; i < 500; i++) {
+    const channel = pick(["1.96.1", "1.80.0", "nightly-2026-01-01"]);
+    const files: string[] = [];
+    const env: Record<string, string> = {};
+    const onPath: Record<string, string> = {};
+    const cargoEnv = "/opt/rust/bin/cargo";
+    if (coin()) env.CARGO = cargoEnv;
+    if (coin()) files.push(cargoEnv);
+    if (coin()) onPath.cargo = "/usr/bin/cargo";
+    const host = pick(hosts);
+    const toolchain = join(home, ".rustup", "toolchains", `${pick([channel, "1.70.0"])}-${host}`, "bin");
+    if (coin()) files.push(join(toolchain, "cargo"));
+    if (coin()) onPath.rustup = "/usr/bin/rustup";
+    const storeRustup = "/nix/store/90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0/bin/rustup";
+    if (coin()) files.push(storeRustup);
+    if (coin()) files.push("/nix/store/hjakvji1fin5darwqm63fpr5skhff071-rustup-1.29.0-vendor.drv");
+    const search: CargoSearch = {
+      env, home, channel, hosts, stores: ["/nix/store"],
+      exists: (path) => files.includes(path),
+      list: (dir) => files.filter((f) => f.startsWith(`${dir}/`)).map((f) => f.slice(dir.length + 1).split("/")[0]!),
+      which: (command) => onPath[command] ?? null,
+    };
+    const pinned = join(home, ".rustup", "toolchains", `${channel}-${host}`, "bin");
+    const expected =
+      env.CARGO !== undefined && files.includes(cargoEnv) ? { command: [cargoEnv], path: dirname(cargoEnv) }
+      : onPath.cargo !== undefined ? { command: [onPath.cargo] }
+      : files.includes(join(pinned, "cargo")) ? { command: [join(pinned, "cargo")], path: pinned }
+      : onPath.rustup !== undefined ? { command: [onPath.rustup, "run", channel, "cargo"] }
+      : files.includes(storeRustup) ? { command: [storeRustup, "run", channel, "cargo"] }
+      : undefined;
+    expect(findCargo(search)).toEqual(expected);
+  }
 });
 
-test("cargo on PATH wins; CARGO wins over it", () => {
-  expect(findCargo(search([], { cargo: "/usr/bin/cargo" }))).toEqual({ command: ["/usr/bin/cargo"] });
-  expect(findCargo(search(["/opt/rust/bin/cargo"], { cargo: "/usr/bin/cargo" }, { CARGO: "/opt/rust/bin/cargo" }))).toEqual({ command: ["/opt/rust/bin/cargo"], path: "/opt/rust/bin" });
-});
-
-test("without cargo on PATH, the pinned toolchain rustup installed is used with its folder first on PATH", () => {
-  const bin = join("/home/p", ".rustup", "toolchains", "1.96.1-x86_64-unknown-linux-gnu", "bin");
-  expect(findCargo(search([join(bin, "cargo")]))).toEqual({ command: [join(bin, "cargo")], path: bin });
-});
-
-test("with only a rustup in the nix store, it runs the pinned channel's cargo", () => {
-  const rustup = join("/nix/store", "90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0", "bin/rustup");
-  expect(findCargo(search([`/nix/store/90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0/bin/rustup`, rustup, "/nix/store/hjakvji1fin5darwqm63fpr5skhff071-rustup-1.29.0-vendor.drv"]))).toEqual({ command: [rustup, "run", "1.96.1", "cargo"] });
-  expect(findCargo(search([]))).toBeUndefined();
-});
-
-test("the pinned channel is read from rust-toolchain.toml", () => {
-  expect(pinnedChannel('[toolchain]\nchannel = "1.96.1"\nprofile = "minimal"\n')).toBe("1.96.1");
+test("the pinned channel round-trips through rust-toolchain.toml (seed 2, 200 cases)", () => {
+  const next = random(2);
+  for (let i = 0; i < 200; i++) {
+    const channel = `1.${Math.floor(next() * 200)}.${Math.floor(next() * 10)}${next() < 0.3 ? "-beta" : ""}`;
+    const before = next() < 0.5 ? "[toolchain]\n" : "";
+    const after = next() < 0.5 ? 'profile = "minimal"\ncomponents = ["rustfmt"]\n' : "";
+    expect(pinnedChannel(`${before}${next() < 0.5 ? "  " : ""}channel ${next() < 0.5 ? "=" : " = "} "${channel}"\n${after}`)).toBe(channel);
+  }
 });
