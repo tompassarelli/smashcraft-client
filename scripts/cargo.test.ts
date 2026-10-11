@@ -29,8 +29,9 @@ test("cargo is found in the documented order: CARGO, PATH, the pinned rustup too
     const toolchain = join(home, ".rustup", "toolchains", `${pick([channel, "1.70.0"])}-${host}`, "bin");
     if (coin()) files.push(join(toolchain, "cargo"));
     if (coin()) onPath.rustup = "/usr/bin/rustup";
-    const storeRustup = "/nix/store/90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0/bin/rustup";
-    if (coin()) files.push(storeRustup);
+    const storeEntry = "/nix/store/90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0";
+    const storeRustup = join(storeEntry, "bin/rustup");
+    if (coin()) files.push(`${storeEntry}/bin/rustup`, storeRustup);
     if (coin()) files.push("/nix/store/hjakvji1fin5darwqm63fpr5skhff071-rustup-1.29.0-vendor.drv");
     const search: CargoSearch = {
       env, home, channel, hosts, stores: ["/nix/store"],
@@ -44,7 +45,7 @@ test("cargo is found in the documented order: CARGO, PATH, the pinned rustup too
       : onPath.cargo !== undefined ? { command: [onPath.cargo] }
       : files.includes(join(pinned, "cargo")) ? { command: [join(pinned, "cargo")], path: pinned }
       : onPath.rustup !== undefined ? { command: [onPath.rustup, "run", channel, "cargo"] }
-      : files.includes(storeRustup) ? { command: [join("/nix/store", "90ljbla2hjxx5w372fcwsl82i5pvn771-rustup-1.29.0", "bin/rustup"), "run", channel, "cargo"] }
+      : files.includes(storeRustup) ? { command: [storeRustup, "run", channel, "cargo"] }
       : undefined;
     expect(findCargo(search)).toEqual(expected);
   }
