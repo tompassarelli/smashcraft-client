@@ -1,5 +1,5 @@
 // The Rust side's commands and events (app.withGlobalTauri exposes window.__TAURI__).
-import type { Bindings, ControllerState, InputView, OnlineState, PlayState, PadPreset, ProfileChoice, TriggerShields } from "./model";
+import type { Bindings, ControllerState, InputView, OnlineState, PlayState, PadPreset, ProfileChoice, RightStick, TriggerShields } from "./model";
 import type { HistoryStore, RecordFile } from "./records";
 import type { ReplayFile, WarcraftGame } from "./replays";
 
@@ -19,6 +19,7 @@ export const api = {
   setPadPreset: (preset: PadPreset) => invoke<boolean>("set_pad_preset", { preset }),
   setTapJump: (on: boolean) => invoke<boolean>("set_tap_jump", { on }),
   setTriggerShields: (triggers: TriggerShields) => invoke<boolean>("set_trigger_shields", { triggers }),
+  setRightStick: (mode: RightStick) => invoke<boolean>("set_right_stick", { mode }),
   bindings: () => invoke<Bindings>("bindings"),
   startWithComputer: () => invoke<boolean>("start_with_computer"),
   setStartWithComputer: (on: boolean) => invoke<boolean>("set_start_with_computer", { on }),

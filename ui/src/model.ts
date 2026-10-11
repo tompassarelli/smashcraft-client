@@ -5,7 +5,8 @@ export type Link = "off" | "starting" | "connected";
 export type Profile = "map" | "any_map" | "off";
 export type PadPreset = "melee" | "z-jump" | "tom";
 export type TriggerShields = { left: "full" | "light"; right: "full" | "light" };
-export type ControllerSettings = { pad_preset: PadPreset; tap_jump: boolean; triggers: TriggerShields };
+export type RightStick = "smash" | "tilt";
+export type ControllerSettings = { pad_preset: PadPreset; tap_jump: boolean; triggers: TriggerShields; right_stick: RightStick };
 export type PadPresetBindings = { preset: PadPreset; label: string; bindings: Binding[] };
 export type ProfileChoice = "auto" | Profile;
 
@@ -46,7 +47,7 @@ export type Control =
 
 export type Press = { key: string } | "left_click" | "right_click" | "pointer";
 export type Binding = { control: Control; action: string; press: Press };
-export type Bindings = { smashcraft: Binding[]; smashcraft_menus: Binding[]; profile: ProfileChoice; pad_preset: PadPreset; tap_jump: boolean; triggers: TriggerShields; pad_presets: PadPresetBindings[] };
+export type Bindings = { smashcraft: Binding[]; smashcraft_menus: Binding[]; profile: ProfileChoice; pad_preset: PadPreset; tap_jump: boolean; triggers: TriggerShields; right_stick: RightStick; pad_presets: PadPresetBindings[] };
 
 export type PlayState = { available: boolean; running: boolean; lines: string[]; finished: boolean | null };
 export type OnlineMode = "setup" | "host" | "join";

@@ -25,7 +25,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
-use wc3_controller_model::{Binding, ClientMessage, InputView, Light, PadKind, PadPreset, ProfileChoice, TriggerShields};
+use wc3_controller_model::{Binding, ClientMessage, InputView, Light, PadKind, PadPreset, ProfileChoice, RightStick, TriggerShields};
 
 use link::{ControllerState, Shared};
 use settings::{Settings, Store};
@@ -132,6 +132,11 @@ fn set_trigger_shields(state: State<AppState>, triggers: TriggerShields) -> bool
     state.link.send(&ClientMessage::TriggerShields(triggers))
 }
 
+#[tauri::command]
+fn set_right_stick(state: State<AppState>, mode: RightStick) -> bool {
+    state.link.send(&ClientMessage::RightStick(mode))
+}
+
 #[derive(Serialize)]
 struct PadPresetBindings {
     preset: PadPreset,
@@ -147,6 +152,7 @@ struct Bindings {
     pad_preset: PadPreset,
     tap_jump: bool,
     triggers: TriggerShields,
+    right_stick: RightStick,
     pad_presets: Vec<PadPresetBindings>,
 }
 
@@ -161,12 +167,13 @@ fn bindings(state: State<AppState>) -> Bindings {
         pad_preset: controller.pad_preset,
         tap_jump: controller.tap_jump,
         triggers: controller.triggers,
+        right_stick: controller.right_stick,
         pad_presets: [(PadPreset::Melee, "Melee"), (PadPreset::ZJump, "Z-jump"), (PadPreset::Tom, "Tom")]
             .into_iter()
             .map(|(preset, label)| PadPresetBindings {
                 preset,
                 label,
-                bindings: wc3_controller_model::pad_bindings(preset, controller.triggers, PadKind::default()),
+                bindings: wc3_controller_model::pad_bindings(preset, controller.triggers, controller.right_stick, PadKind::default()),
             })
             .collect(),
     }
@@ -454,6 +461,7 @@ pub fn run() {
             set_pad_preset,
             set_tap_jump,
             set_trigger_shields,
+            set_right_stick,
             bindings,
             start_with_computer,
             set_start_with_computer,

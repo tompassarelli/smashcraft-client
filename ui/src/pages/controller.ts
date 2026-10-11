@@ -1,7 +1,7 @@
 import { h, svg } from "../dom";
 import {
   PROFILE_CHOICES, PROFILE_LABEL, controlLabel, pressed, stickDot,
-  type Binding, type Bindings, type Button, type Control, type ControllerState, type ControllerSettings, type InputView, type ProfileChoice,
+  type Binding, type Bindings, type Button, type Control, type ControllerState, type ControllerSettings, type InputView, type ProfileChoice, type RightStick,
 } from "../model";
 import { api } from "../tauri";
 
@@ -242,6 +242,15 @@ function mappingCard(pad: ReturnType<typeof padView>) {
       } finally { select.disabled = false; }
     });
   }
+  const rightStick = h("select", { "aria-label": "Right stick" }, h("option", { value: "smash" }, "Smash attacks"), h("option", { value: "tilt" }, "Tilt attacks"));
+  rightStick.addEventListener("change", async () => {
+    rightStick.disabled = true;
+    try {
+      await api.setRightStick(rightStick.value as RightStick);
+    } finally {
+      rightStick.disabled = false;
+    }
+  });
   const tapJump = h("input", { type: "checkbox", "aria-label": "Tap jump" });
   tapJump.addEventListener("change", async () => {
     tapJump.disabled = true;
@@ -270,6 +279,7 @@ function mappingCard(pad: ReturnType<typeof padView>) {
     presetSelect.value = settings.pad_preset;
     triggerSelects.left.value = settings.triggers.left;
     triggerSelects.right.value = settings.triggers.right;
+    rightStick.value = settings.right_stick;
     void api.bindings().then(label);
   };
   const load = (bindings: Bindings) => {
@@ -285,6 +295,7 @@ function mappingCard(pad: ReturnType<typeof padView>) {
     h("label.setting.switch", {}, tapJump, h("span", {}, "Tap jump"), h("small", {}, "Push the left stick up to jump.")),
     h("div.setting", {}, h("span", {}, "Trigger shields"),
       h("div.shields", {}, h("label", {}, "LT ", triggerSelects.left), h("label", {}, "RT ", triggerSelects.right))),
+    h("label.setting", {}, h("span", {}, "Right stick"), rightStick),
   );
   const el = h("section.card.mapping-card", {}, h("h2", {}, "Smashcraft buttons"), h("div.pad-layout", {}, pad.el, settings));
   return { el, renderSettings, load };
