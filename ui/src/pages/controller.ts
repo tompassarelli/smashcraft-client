@@ -39,10 +39,8 @@ function statusCard(): { el: HTMLElement; render: (s: ControllerState) => void }
   return { el: h("section.card.status", {}, h("h2", {}, "Status"), rows, problem, off), render };
 }
 
-/** One callout line: a control tag and what it does, from the bindings. */
 type Line = { tag: string; text: string; kind: "fight" | "menus" | "none" };
 
-/** The callout lines for each part of the pad, merging the fighting and menu bindings. */
 function callouts(fight: Binding[], menus: Binding[]): Map<string, Line[]> {
   const of = (bindings: Binding[], control: Control) => bindings.find((b) => b.control === control)?.action;
   const button = (control: Control): Line[] => {
@@ -76,7 +74,6 @@ function callouts(fight: Binding[], menus: Binding[]): Map<string, Line[]> {
   return map;
 }
 
-// The pad drawing sits at PAD (scaled by S) with the callouts in columns either side and under it.
 const S = 1.2;
 const PAD = { x: 200, y: 0 };
 const at = (x: number, y: number): [number, number] => [PAD.x + x * S, PAD.y + y * S];
@@ -85,7 +82,6 @@ const GAP = 10;
 const LEFT_X = PAD.x - 22;
 const RIGHT_X = PAD.x + 360 * S + 22;
 
-/** Where each callout points, and from which side; `via` routes a leader around other buttons. */
 const ANCHORS: { part: string; side: "left" | "right"; point: [number, number]; via?: [number, number] }[] = [
   { part: "lt", side: "left", point: at(80, 8) },
   { part: "lb", side: "left", point: at(55, 27) },
@@ -99,7 +95,6 @@ const ANCHORS: { part: string; side: "left" | "right"; point: [number, number]; 
   { part: "a", side: "right", point: at(296, 108) },
   { part: "right", side: "right", point: at(261, 140) },
 ];
-/** Back and Start, between the grips, take their callouts straight down. */
 const BELOW: { part: string; point: [number, number]; anchor: "end" | "start" }[] = [
   { part: "back", point: at(160, 82), anchor: "end" },
   { part: "start", point: at(200, 82), anchor: "start" },
@@ -290,8 +285,6 @@ function mappingCard(pad: ReturnType<typeof padView>) {
     h("label.setting.switch", {}, tapJump, h("span", {}, "Tap jump"), h("small", {}, "Push the left stick up to jump.")),
     h("div.setting", {}, h("span", {}, "Trigger shields"),
       h("div.shields", {}, h("label", {}, "LT ", triggerSelects.left), h("label", {}, "RT ", triggerSelects.right))),
-    // Slot for the Right-stick mode setting, added once wc3-controller-model supports it.
-    h("div.setting.right-stick-mode-slot", { hidden: true }),
   );
   const el = h("section.card.mapping-card", {}, h("h2", {}, "Smashcraft buttons"), h("div.pad-layout", {}, pad.el, settings));
   return { el, renderSettings, load };

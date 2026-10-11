@@ -92,7 +92,6 @@ button.quiet { margin-top: 10px; background: transparent; color: var(--muted); }
 .shields label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
 .pad-settings select { width: 100%; }
 .shields select { width: auto; }
-/* Narrow windows: the settings move under the picture as one row, so the callouts keep a readable size. */
 @media (max-width: 1100px) {
   .pad-layout { grid-template-columns: 1fr; gap: 12px; }
   .pad-settings { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 12px 28px; }
