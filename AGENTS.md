@@ -2,7 +2,7 @@
 
 ## Tests
 
-Tests follow the testing skill (north:socrates/skills/testing/SKILL.md). Every
+Tests follow the testing skill (north:harness/skills/testing/SKILL.md). Every
 permanent test is one of five kinds:
 
 1. A recorded scenario: real or seeded input replayed through the whole
