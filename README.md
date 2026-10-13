@@ -1,5 +1,9 @@
 # Smashcraft client
 
+Smashcraft is played inside Warcraft III, which has no controller support, no
+match history and no way to review a game. The client adds them from outside
+the game, reading only what Smashcraft publishes for it.
+
 The desktop app players install beside Warcraft III to play
 [Smashcraft](https://github.com/tompassarelli/smashcraft): a window with
 routed pages (Controller, History, Stats, Replays and Online; more slot into
@@ -7,43 +11,27 @@ routed pages (Controller, History, Stats, Replays and Online; more slot into
 (Tauri v2), pages in TypeScript built with Bun in ui, embedded into the binary
 at build time. MIT licensed.
 
-## Respecting Blizzard's and Nintendo's IP
+## Principles
 
-The Smashcraft client, like Smashcraft, is a fan project that works with your
-own copy of Warcraft III, and Smashcraft takes its feel from Super Smash Bros.
-Melee. We keep both clean of Blizzard's and Nintendo's property and of anything
-that reaches inside either game:
+The Smashcraft client is an independent fan project, not affiliated with or
+endorsed by Blizzard Entertainment or Nintendo. It is written entirely from
+scratch and works alongside a copy of Warcraft III you own; it never replaces
+or redistributes the game. Smashcraft takes its feel from Super Smash Bros.
+Melee, and the same principles cover both.
 
-- We never copy or distribute Blizzard's code, art, models, textures, sounds,
-  music, data tables, game scripts (the bodies of common.j and blizzard.j) or
-  in-game text. Players load art from their own legally owned install at run
-  time. Short identifying quotes and native names and signatures are the
-  map-facing interface, and those are fine.
-- What we know about Warcraft III's behaviour comes only from black-box
-  observation of the game as a player sees it (pictures, sound, logs and files
-  the game writes, replays, timing, LAN network traffic of games we host) and
-  from public documentation. Never from disassembly, decompilation, decrypted
-  or dumped executables, debugger sessions, or reading the game's memory.
-- No DRM bypass, no Battle.net sign-in emulation, no cheating or anti-cheat
-  evasion, and nothing that touches other players' games or Blizzard's
-  services.
-- Private local test tools (the LAN switch that patches our own test clients
-  so they offer LAN, and the desync debugger that reads our own clients'
-  memory) live outside every repository under `~/.local/share/wisp-private/`.
-  They run only on our own machines and test accounts and never feed the
-  implementation. Their addresses, offsets, dumps, byte patterns and
-  procedures are never committed, posted in issues or pull requests, or quoted
-  in docs. Their findings may only help diagnose our own bugs (a desync, for
-  example), never decide how the engine behaves.
-- "Warcraft" stays out of product names and logos; "works with your Warcraft
-  III install" is fine.
-- No Warsmash (AGPL) code.
-- Melee gets the same rules. Its feel comes from public frame data and from
-  watching the game, never from the community decompilation or Melee's own
-  files: no decompiled function names, addresses, struct offsets or code
-  excerpts, and no values read out of the disc's files. Gameplay facts (frame
-  counts, speeds, design intent) are written as our own design targets, citing
-  public frame-data sources where they exist.
+- **Respect copyright and publisher IP.** Nothing of Blizzard's or Nintendo's
+  (code, art, sound, data, game scripts or in-game text) is in this repository
+  or ships with the client. Art loads at run time from your own install.
+- **Learn by observation.** Behaviour is measured from the outside: what
+  Warcraft III shows, plays, logs and writes, and the traffic of LAN games we
+  host, plus public documentation. Melee's feel comes from public frame data
+  (SmashWiki, Smashboards) and from watching the game, never from the community
+  decompilation or Melee's own files. Never from disassembly, decompilation or
+  a game's memory.
+- **Play fair.** No DRM bypass, no Battle.net emulation, no cheats, and nothing
+  that touches other players or Blizzard's services.
+- **Original work.** Our own code only. No code from AGPL projects such as
+  Warsmash, and "Warcraft" stays out of our product names.
 
 The long form, with what counts as observation and how the checks enforce it,
 is Wisp's [clean-room rules](https://github.com/tompassarelli/wisp/blob/main/docs/clean-room.md).
@@ -214,3 +202,6 @@ CI (.github/workflows/ci.yml) builds and tests on Linux and Windows and
 uploads each build with the wc3-controller service of the tag pinned in
 src-tauri/Cargo.toml. Pushing a tag `vX.Y.Z` (`safe-push --tag vX.Y.Z`)
 attaches both to that release.
+
+<small>Warcraft and Blizzard Entertainment are trademarks or registered trademarks of Blizzard
+Entertainment, Inc. Nintendo and Super Smash Bros. Melee are trademarks of Nintendo.</small>

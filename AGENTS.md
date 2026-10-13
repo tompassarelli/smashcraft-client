@@ -1,6 +1,6 @@
 # Agents
 
-Follow README's "Respecting Blizzard's and Nintendo's IP": if a task seems to need memory reads, disassembly, decompiled code or Blizzard's or Nintendo's files in the repo, stop and measure from outside instead.
+Follow README's "Principles": if a task seems to need memory reads, disassembly, decompiled code or Blizzard's or Nintendo's files in the repo, stop and measure from outside instead.
 
 ## Tests
 
