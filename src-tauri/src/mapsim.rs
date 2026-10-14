@@ -10,7 +10,6 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::UNIX_EPOCH;
 
 use crate::lua32::Lua;
 
@@ -53,9 +52,9 @@ fn smashcraft_maps(folder: &Path, depth: u32, found: &mut Vec<PathBuf>) {
 }
 
 fn stamp_of_file(path: &Path) -> (u64, u64) {
-    let meta = std::fs::metadata(path).ok();
-    let modified = meta.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis() as u64);
-    (modified, meta.map_or(0, |m| m.len()))
+    let meta = std::fs::metadata(path);
+    let len = meta.as_ref().map_or(0, |meta| meta.len());
+    (crate::files::modified_ms(meta).unwrap_or(0), len)
 }
 
 fn war3map_lua(path: &Path) -> Result<String, String> {

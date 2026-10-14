@@ -5,47 +5,25 @@
 //! a replay needs. The pages join, check and play them
 //! (smashcraft-client:ui/src/replays.ts); this side only reads and keeps files.
 
-use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
+
+use crate::files::{self, TextFile};
 
 const PREFIX: &str = "smashcraft-replay-";
 const SUFFIX: &str = ".txt";
 
-/// A manifest the map wrote, or a joined replay the client keeps.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct ReplayFile {
-    pub folder: String,
-    pub name: String,
-    pub text: String,
-    /// When the file was last written, in milliseconds since 1970; 0 when unknown.
-    pub modified: u64,
-}
-
 /// The serial a manifest's name `smashcraft-replay-<serial>.txt` carries; a part's name has none.
 pub fn manifest_serial(name: &str) -> Option<u32> {
-    let serial = name.strip_prefix(PREFIX)?.strip_suffix(SUFFIX)?;
-    if serial.is_empty() || !serial.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    serial.parse().ok()
+    files::serial_of(name, PREFIX, SUFFIX)?.parse().ok()
 }
 
 pub fn part_name(serial: u32, part: u32) -> String {
     format!("{PREFIX}{serial}-{part}{SUFFIX}")
 }
 
-fn modified(path: &Path) -> u64 {
-    std::fs::metadata(path)
-        .and_then(|meta| meta.modified())
-        .ok()
-        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
-        .map_or(0, |since| since.as_millis() as u64)
-}
-
 /// Every manifest in `folders`, and every `.txt` file in `kept`; missing or unreadable ones are skipped.
-pub fn read_replay_files(folders: &[String], kept: &Path) -> Vec<ReplayFile> {
-    let mut files = Vec::new();
+pub fn read_replay_files(folders: &[String], kept: &Path) -> Vec<TextFile> {
+    let mut found = Vec::new();
     let mut read = |folder: &Path, wanted: &dyn Fn(&str) -> bool| {
         let Ok(entries) = std::fs::read_dir(folder) else { return };
         for entry in entries.flatten() {
@@ -54,11 +32,11 @@ pub fn read_replay_files(folders: &[String], kept: &Path) -> Vec<ReplayFile> {
                 continue;
             }
             let Ok(bytes) = std::fs::read(entry.path()) else { continue };
-            files.push(ReplayFile {
+            found.push(TextFile {
                 folder: folder.to_string_lossy().into_owned(),
                 name,
                 text: String::from_utf8_lossy(&bytes).into_owned(),
-                modified: modified(&entry.path()),
+                modified: files::modified_ms(std::fs::metadata(entry.path())).unwrap_or(0),
             });
         }
     };
@@ -66,8 +44,8 @@ pub fn read_replay_files(folders: &[String], kept: &Path) -> Vec<ReplayFile> {
         read(Path::new(folder), &|name| manifest_serial(name).is_some());
     }
     read(kept, &|name| name.ends_with(SUFFIX));
-    files.sort_by(|a, b| (&a.folder, &a.name).cmp(&(&b.folder, &b.name)));
-    files
+    found.sort_by(|a, b| (&a.folder, &a.name).cmp(&(&b.folder, &b.name)));
+    found
 }
 
 /// The texts of a manifest's parts 1 to `parts` beside it, in order.
@@ -101,19 +79,12 @@ impl Kept {
         Self { replays: data.join("replays"), sims: data.join("sims") }
     }
 
-    fn write(dir: &Path, name: &str, text: &str) -> Result<PathBuf, String> {
-        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-        let path = dir.join(name);
-        let tmp = dir.join(format!("{name}.tmp"));
-        std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
-        std::fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
-        Ok(path)
-    }
-
     /// Keeps a joined replay; its path.
     pub fn keep_replay(&self, name: &str, text: &str) -> Result<String, String> {
         safe_name(name, SUFFIX)?;
-        Self::write(&self.replays, name, text).map(|path| path.to_string_lossy().into_owned())
+        let path = self.replays.join(name);
+        files::write_atomic(&path, text)?;
+        Ok(path.to_string_lossy().into_owned())
     }
 
     /// Keeps a version's simulation unless it is already kept.
@@ -123,7 +94,7 @@ impl Kept {
         if self.sims.join(&name).is_file() {
             return Ok(());
         }
-        Self::write(&self.sims, &name, code).map(|_| ())
+        files::write_atomic(&self.sims.join(name), code)
     }
 
     /// A kept version's simulation.
