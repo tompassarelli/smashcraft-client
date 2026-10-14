@@ -120,7 +120,7 @@ jobs:
           tag=$(sed -n 's/^wc3-controller-model = .*tag = "\([^"]*\)".*/\1/p' src-tauri/Cargo.toml)
           test -n "$tag"
           mkdir -p service dist/${{ matrix.asset }}
-          gh release download "$tag" -R tompassarelli/wc3-controller -p "${{ matrix.service }}" -D service
+          gh release download "$tag" -R tompassarelli/padbridge -p "${{ matrix.service }}" -D service
           cd service
           if [ "$RUNNER_OS" = Windows ]; then 7z x -bd ${{ matrix.service }} >/dev/null; else tar xzf ${{ matrix.service }}; fi
           cd ..

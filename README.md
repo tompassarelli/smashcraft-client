@@ -41,7 +41,7 @@ is Wisp's [clean-room rules](https://github.com/tompassarelli/wisp/blob/main/doc
 Download the release for your system from
 [Releases](https://github.com/tompassarelli/smashcraft-client/releases) and
 unpack it anywhere. It holds `smashcraft` (`smashcraft.exe`), the
-[wc3-controller](https://github.com/tompassarelli/wc3-controller) service
+[wc3-controller](https://github.com/tompassarelli/padbridge) service
 beside it, and `VERSION` naming the commits it was built from. Run
 `smashcraft`. On Linux the app needs WebKitGTK 4.1 and libayatana-appindicator
 (`libwebkit2gtk-4.1-0 libayatana-appindicator3-1` on Debian and Ubuntu).
@@ -80,7 +80,7 @@ prefix that holds the map, run with `wine` (`WINE`) and that `WINEPREFIX`.
 
 Controller support is optional: Smashcraft plays on the keyboard alone, and
 the service turns a pad into the same keys. The client never reads the pad itself. It connects to the Warcraft III
-Controller service ([wc3-controller](https://github.com/tompassarelli/wc3-controller),
+Controller service ([wc3-controller](https://github.com/tompassarelli/padbridge),
 with Smashcraft's plug-in from smashcraft:controller) on 127.0.0.1:47631 and
 shows its status, live input and bindings; the messages and plain-language
 status rows come from wc3-controller's model crate, pinned by tag in
