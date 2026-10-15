@@ -4,6 +4,9 @@
 //! client starts the bundled service only when none answers.
 
 pub mod autostart;
+pub mod cli;
+pub mod commands;
+pub mod instance_lock;
 pub mod link;
 pub mod lua32;
 pub mod mapsim;
@@ -13,376 +16,31 @@ pub mod play;
 pub mod records;
 pub mod replays;
 pub mod settings;
-pub mod single;
+pub mod sink;
+pub mod state;
 pub mod tray;
 pub mod warcraft_replays;
 
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, Mutex};
 
-use serde::Serialize;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri::{Manager, WindowEvent};
 use tauri_plugin_autostart::MacosLauncher;
-use wc3_controller_model::{Binding, ClientMessage, InputView, Light, PadKind, PadPreset, ProfileChoice, RightStick, TriggerShields};
 
-use link::{ControllerState, Shared};
-use settings::{Settings, Store};
-
-const TRAY: &str = "status";
-
-static PLAY: LazyLock<play::Play> = LazyLock::new(play::Play::default);
-
-struct AppState {
-    link: Arc<Shared>,
-    store: Store,
-    settings: Mutex<Settings>,
-    history: records::History,
-    online: Arc<online::Online>,
-    log_dir: Option<std::path::PathBuf>,
-    kept: replays::Kept,
-    mapsims: mapsim::MapSims,
-    warcraft: warcraft_replays::Library,
-}
-
-impl AppState {
-    fn update(&self, change: impl FnOnce(&mut Settings)) -> Result<(), String> {
-        let mut settings = self.settings.lock().unwrap();
-        change(&mut settings);
-        self.store.save(&settings)
-    }
-}
-
-fn show_window(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
-    }
-}
-
-struct TauriSink {
-    app: AppHandle,
-    light: Mutex<Option<Light>>,
-    /// The newest pad state not yet shown; the service sends every pad report.
-    input: Arc<Mutex<Option<InputView>>>,
-}
-
-/// Shows pad input at most once a frame (60 Hz), always ending on the newest state.
-fn show_input(app: AppHandle, pending: Arc<Mutex<Option<InputView>>>) {
-    loop {
-        std::thread::sleep(std::time::Duration::from_millis(16));
-        if let Some(input) = pending.lock().unwrap().take() {
-            let _ = app.emit("input", input);
-        }
-    }
-}
-
-impl link::Sink for TauriSink {
-    fn status(&self, state: &ControllerState) {
-        let _ = self.app.emit("controller", state);
-        let light = state.view.overall;
-        let mut last = self.light.lock().unwrap();
-        if *last != Some(light) {
-            *last = Some(light);
-            if let Some(tray) = self.app.tray_by_id(TRAY) {
-                let _ = tray.set_icon(Some(Image::new_owned(tray::light_rgba(light), tray::SIZE, tray::SIZE)));
-                let _ = tray.set_tooltip(Some(tray::tooltip(light)));
-            }
-        }
-    }
-
-    fn input(&self, input: &InputView) {
-        *self.input.lock().unwrap() = Some(*input);
-    }
-}
-
-#[tauri::command]
-fn controller_state(state: State<AppState>) -> ControllerState {
-    state.link.state()
-}
-
-#[tauri::command]
-fn turn_on_controller(state: State<AppState>) -> Result<ControllerState, String> {
-    state.update(|s| s.controller_on = true)?;
-    state.link.sup.lock().unwrap().turn_on();
-    Ok(state.link.state())
-}
-
-#[tauri::command]
-fn set_profile(state: State<AppState>, choice: ProfileChoice) -> Result<bool, String> {
-    state.update(|s| s.profile = choice)?;
-    state.link.greet(state.settings.lock().unwrap().greeting());
-    Ok(state.link.send(&ClientMessage::Profile(choice)))
-}
-
-#[tauri::command]
-fn set_pad_preset(state: State<AppState>, preset: PadPreset) -> Result<bool, String> {
-    Ok(state.link.send(&ClientMessage::PadPreset(preset)))
-}
-
-#[tauri::command]
-fn set_tap_jump(state: State<AppState>, on: bool) -> Result<bool, String> {
-    Ok(state.link.send(&ClientMessage::TapJump(on)))
-}
-
-#[tauri::command]
-fn set_trigger_shields(state: State<AppState>, triggers: TriggerShields) -> bool {
-    state.link.send(&ClientMessage::TriggerShields(triggers))
-}
-
-#[tauri::command]
-fn set_right_stick(state: State<AppState>, mode: RightStick) -> bool {
-    state.link.send(&ClientMessage::RightStick(mode))
-}
-
-#[derive(Serialize)]
-struct PadPresetBindings {
-    preset: PadPreset,
-    label: &'static str,
-    bindings: Vec<Binding>,
-}
-
-#[derive(Serialize)]
-struct Bindings {
-    smashcraft: Vec<Binding>,
-    smashcraft_menus: Vec<Binding>,
-    profile: ProfileChoice,
-    pad_preset: PadPreset,
-    tap_jump: bool,
-    triggers: TriggerShields,
-    right_stick: RightStick,
-    pad_presets: Vec<PadPresetBindings>,
-}
-
-#[tauri::command]
-fn bindings(state: State<AppState>) -> Bindings {
-    let settings = state.settings.lock().unwrap();
-    let controller = state.link.snapshot.lock().unwrap().settings.clone();
-    Bindings {
-        smashcraft: controller.bindings(PadKind::default()),
-        smashcraft_menus: wc3_controller_model::menu_pointer_bindings(),
-        profile: settings.profile,
-        pad_preset: controller.pad_preset,
-        tap_jump: controller.tap_jump,
-        triggers: controller.triggers,
-        right_stick: controller.right_stick,
-        pad_presets: [(PadPreset::Melee, "Melee"), (PadPreset::ZJump, "Z-jump"), (PadPreset::Tom, "Tom")]
-            .into_iter()
-            .map(|(preset, label)| PadPresetBindings {
-                preset,
-                label,
-                bindings: wc3_controller_model::pad_bindings(preset, controller.triggers, controller.right_stick, PadKind::default()),
-            })
-            .collect(),
-    }
-}
-
-#[tauri::command]
-fn start_with_computer(app: AppHandle) -> bool {
-    autostart::is_enabled(&app)
-}
-
-#[tauri::command]
-fn set_start_with_computer(app: AppHandle, on: bool) -> Result<bool, String> {
-    autostart::set(&app, on)
-}
-
-fn record_folders_of(settings: &Settings) -> Vec<String> {
-    settings.record_folders.clone().unwrap_or_else(records::default_folders)
-}
-
-#[tauri::command]
-fn record_folders(state: State<AppState>) -> Vec<String> {
-    record_folders_of(&state.settings.lock().unwrap())
-}
-
-#[tauri::command]
-fn set_record_folders(state: State<AppState>, folders: Vec<String>) -> Result<Vec<String>, String> {
-    state.update(|s| s.record_folders = Some(folders))?;
-    Ok(record_folders_of(&state.settings.lock().unwrap()))
-}
-
-#[tauri::command]
-fn read_records(state: State<AppState>) -> Vec<records::RecordFile> {
-    let folders = record_folders_of(&state.settings.lock().unwrap());
-    records::read_record_files(&folders)
-}
-
-#[tauri::command]
-fn history(state: State<AppState>) -> serde_json::Value {
-    state.history.load()
-}
-
-#[tauri::command]
-fn save_history(state: State<AppState>, history: serde_json::Value) -> Result<(), String> {
-    state.history.save(&history)
-}
-
-#[tauri::command]
-fn read_replays(state: State<AppState>) -> Vec<replays::ReplayFile> {
-    let folders = record_folders_of(&state.settings.lock().unwrap());
-    replays::read_replay_files(&folders, &state.kept.replays)
-}
-
-#[tauri::command]
-fn read_replay_parts(folder: String, serial: u32, parts: u32) -> Result<Vec<String>, String> {
-    replays::read_parts(&folder, serial, parts)
-}
-
-#[tauri::command]
-fn keep_replay(state: State<AppState>, name: String, text: String) -> Result<String, String> {
-    state.kept.keep_replay(&name, &text)
-}
-
-#[tauri::command]
-fn keep_sim(state: State<AppState>, version: String, code: String) -> Result<(), String> {
-    state.kept.keep_sim(&version, &code)
-}
-
-#[tauri::command]
-fn kept_sim(state: State<AppState>, version: String) -> Option<String> {
-    state.kept.sim(&version)
-}
-
-fn maps_of(state: &AppState) -> Vec<std::path::PathBuf> {
-    mapsim::maps_folders(&record_folders_of(&state.settings.lock().unwrap()))
-}
-
-/// Versions whose maps are in the Maps folders beside the record folders, or were read before.
-#[tauri::command]
-async fn map_versions(state: State<'_, AppState>) -> Result<Vec<String>, String> {
-    Ok(state.mapsims.scan(&maps_of(&state)))
-}
-
-/// Opens a joined replay in its version's map: {"id", "opened"} with the viewer driver's answer.
-#[tauri::command]
-async fn map_replay_open(state: State<'_, AppState>, version: String, replay: String, viewer: String) -> Result<String, String> {
-    let (id, opened) = state.mapsims.open(&maps_of(&state), &version, &replay, &viewer)?;
-    Ok(format!("{{\"id\":{id},\"opened\":{opened}}}"))
-}
-
-#[tauri::command]
-async fn map_replay_step(state: State<'_, AppState>, id: u32, seek: bool, frames: i64) -> Result<String, String> {
-    state.mapsims.step(id, seek, frames)
-}
-
-#[tauri::command]
-fn map_replay_close(state: State<AppState>, id: u32) {
-    state.mapsims.close(id);
-}
-
-#[tauri::command]
-fn kept_sims(state: State<AppState>) -> Vec<String> {
-    state.kept.sims()
-}
-
-#[tauri::command]
-fn warcraft_games(state: State<AppState>) -> Vec<warcraft_replays::WarcraftGame> {
-    state.warcraft.games()
-}
-
-#[tauri::command]
-fn watch_in_warcraft(state: State<AppState>, file: String, name: String) -> Result<String, String> {
-    state.warcraft.put_in_warcraft(&file, &name)
-}
-
-#[tauri::command]
-fn play_state(state: State<AppState>) -> play::PlayState {
-    PLAY.state(&maps_of(&state))
-}
-
-#[tauri::command]
-fn play(app: AppHandle, state: State<AppState>) -> Result<play::PlayState, String> {
-    let maps = maps_of(&state);
-    PLAY.start(&maps, move |snapshot| {
-        let _ = app.emit("play", snapshot);
-    })?;
-    Ok(PLAY.state(&maps))
-}
-
-#[tauri::command]
-fn online_state(state: State<AppState>) -> online::OnlineState {
-    state.online.state()
-}
-
-/// The player's answer to adding Smashcraft's page to Warcraft III's menus: none until asked.
-#[tauri::command]
-fn menu_page_choice(state: State<AppState>) -> Option<bool> {
-    state.settings.lock().unwrap().menu_page
-}
-
-#[tauri::command]
-fn decline_menu_page(state: State<AppState>) -> Result<(), String> {
-    state.update(|s| s.menu_page = Some(false))
-}
-
-fn start_online(app: AppHandle, state: &AppState, mode: online::Mode, code: Option<&str>) -> Result<online::OnlineState, String> {
-    let dir = play::tools_dir().ok_or("Online play needs Smashcraft's tools: set SMASHCRAFT_TS to their ts folder.")?;
-    let repair = state.settings.lock().unwrap().menu_page == Some(true);
-    let bun = std::env::var_os("BUN").unwrap_or_else(|| "bun".into());
-    let log = state.log_dir.as_ref().map(|dir| dir.join("online.log"));
-    state.online.start(mode, bun, online::online_args(mode, code, repair), &dir, log, move |snapshot| {
-        let _ = app.emit("online", snapshot);
-    })?;
-    Ok(state.online.state())
-}
-
-/// The player agreed: remember it and set up Warcraft III's menus.
-#[tauri::command]
-fn online_setup(app: AppHandle, state: State<AppState>) -> Result<online::OnlineState, String> {
-    state.update(|s| s.menu_page = Some(true))?;
-    start_online(app, &state, online::Mode::Setup, None)
-}
-
-#[tauri::command]
-fn online_host(app: AppHandle, state: State<AppState>) -> Result<online::OnlineState, String> {
-    start_online(app, &state, online::Mode::Host, None)
-}
-
-#[tauri::command]
-fn online_join(app: AppHandle, state: State<AppState>, code: String) -> Result<online::OnlineState, String> {
-    start_online(app, &state, online::Mode::Join, Some(&code))
-}
-
-#[tauri::command]
-fn online_start_now(state: State<AppState>) -> bool {
-    state.online.start_now()
-}
-
-#[tauri::command]
-fn online_cancel(state: State<AppState>) {
-    state.online.cancel()
-}
-
-fn check() {
-    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], link::service_port()));
-    let status = std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(1)).ok().and_then(|stream| {
-        stream.set_read_timeout(Some(std::time::Duration::from_secs(2))).ok()?;
-        let mut line = String::new();
-        std::io::BufRead::read_line(&mut std::io::BufReader::new(stream), &mut line).ok()?;
-        Some(line.trim_end().to_owned())
-    });
-    println!("controller service on {addr}: {}", status.as_deref().unwrap_or("not answering"));
-    println!("bundled service: {}", link::service_program().display());
-    let maps = mapsim::maps_folders(&records::default_folders());
-    println!("maps folders: {maps:?}");
-    match play::current_map(&maps) {
-        None => println!("play: no Smashcraft map in Maps/00-Smashcraft"),
-        Some(map) => match play::launch_for(&map, std::env::var_os("WARCRAFT_III"), cfg!(windows)) {
-            None => println!("play: {} (Warcraft III not found)", map.display()),
-            Some(launch) => println!("play: {:?} {:?} prefix {:?}", launch.program, launch.args, launch.prefix),
-        },
-    }
-}
+use commands::{controller, history, online as online_page, play as play_page, records as records_page, replays as replays_page};
+use link::Shared;
+use settings::Store;
+use sink::{show_input, TauriSink, TRAY};
+use state::{record_folders_of, show_window, AppState};
 
 pub fn run() {
     if std::env::args().any(|arg| arg == "--check") {
-        return check();
+        return cli::check();
     }
     let hidden = std::env::args().any(|arg| arg == "--hidden");
-    let single::Claim::First(instance) = single::claim(single::client_port()) else {
+    let instance_lock::Claim::First(instance) = instance_lock::claim(instance_lock::client_port()) else {
         return;
     };
     tauri::Builder::default()
@@ -436,7 +94,7 @@ pub fn run() {
             });
             std::thread::spawn({
                 let app = app.handle().clone();
-                move || single::listen(instance, move || show_window(&app))
+                move || instance_lock::listen(instance, move || show_window(&app))
             });
             app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), log_dir, kept, mapsims, warcraft });
             std::thread::spawn({
@@ -455,43 +113,43 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            controller_state,
-            turn_on_controller,
-            set_profile,
-            set_pad_preset,
-            set_tap_jump,
-            set_trigger_shields,
-            set_right_stick,
-            bindings,
-            start_with_computer,
-            set_start_with_computer,
-            play_state,
-            play,
-            record_folders,
-            set_record_folders,
-            read_records,
-            history,
-            save_history,
-            online_state,
-            menu_page_choice,
-            decline_menu_page,
-            online_setup,
-            online_host,
-            online_join,
-            online_start_now,
-            online_cancel,
-            read_replays,
-            read_replay_parts,
-            keep_replay,
-            keep_sim,
-            kept_sim,
-            kept_sims,
-            map_versions,
-            map_replay_open,
-            map_replay_step,
-            map_replay_close,
-            warcraft_games,
-            watch_in_warcraft,
+            controller::controller_state,
+            controller::turn_on_controller,
+            controller::set_profile,
+            controller::set_pad_preset,
+            controller::set_tap_jump,
+            controller::set_trigger_shields,
+            controller::set_right_stick,
+            controller::bindings,
+            controller::start_with_computer,
+            controller::set_start_with_computer,
+            play_page::play_state,
+            play_page::play,
+            records_page::record_folders,
+            records_page::set_record_folders,
+            records_page::read_records,
+            history::history,
+            history::save_history,
+            online_page::online_state,
+            online_page::menu_page_choice,
+            online_page::decline_menu_page,
+            online_page::online_setup,
+            online_page::online_host,
+            online_page::online_join,
+            online_page::online_start_now,
+            online_page::online_cancel,
+            replays_page::read_replays,
+            replays_page::read_replay_parts,
+            replays_page::keep_replay,
+            replays_page::keep_sim,
+            replays_page::kept_sim,
+            replays_page::kept_sims,
+            replays_page::map_versions,
+            replays_page::map_replay_open,
+            replays_page::map_replay_step,
+            replays_page::map_replay_close,
+            replays_page::warcraft_games,
+            replays_page::watch_in_warcraft,
         ])
         .run(tauri::generate_context!())
         .expect("Smashcraft failed to start");
