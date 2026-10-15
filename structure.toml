@@ -1,0 +1,74 @@
+# smashcraft-client structure.toml (structure-architect planner, 15 Oct 2026). Lands at repo root as structure.toml.
+# TARGET layers from client-design.md section 2 mapped onto today's files. First matching module wins.
+
+[thresholds]
+file_lines = 400            # 39 hand files (Rust + TS), p50 77, p90 279, p95 348, max 498 (lib.rs, frozen until C3)
+function_lines = 80
+function_complexity = 15
+hotspot_top = 3
+
+[review]
+commits = 100
+hand_lines_added = 5000
+days = 7
+hotspot_score = 0
+
+[[module]]
+name = "tests"
+thresholds = { function_lines = 150, function_complexity = 30 }
+paths = ["**/*.test.ts", "src-tauri/tests/**", "ui/test/**"]
+responsibility = "Bun and cargo tests."
+may_use = ["ui-generated", "ui-core", "ui-pages", "scripts", "link", "game-files", "launch", "app"]
+
+[[module]]
+name = "link"
+paths = ["src-tauri/src/link/**", "src-tauri/src/link.rs"]
+responsibility = "Start and watch padbridge and the map plug-in; TCP client of the padbridge protocol."
+may_use = []
+
+[[module]]
+name = "game-files"
+paths = ["src-tauri/src/game/**", "src-tauri/src/records.rs", "src-tauri/src/replays.rs", "src-tauri/src/warcraft_replays.rs",
+         "src-tauri/src/mapsim.rs", "src-tauri/src/mapsim.lua", "src-tauri/src/mpq.rs", "src-tauri/src/lua32.rs"]
+responsibility = "Read the map's records, replays and Lua through the client kit contract; keep LastReplay.w3g copies."
+may_use = []
+
+[[module]]
+name = "launch"
+paths = ["src-tauri/src/launch/**", "src-tauri/src/play.rs", "src-tauri/src/online.rs"]
+responsibility = "Start Warcraft III on the installed map and run bun wisp online."
+may_use = ["game-files"]
+
+[[module]]
+name = "app"
+paths = ["src-tauri/src/**", "src-tauri/build.rs"]
+responsibility = "Tauri setup, tray, window, settings, single-instance lock and command handlers grouped by page."
+may_use = ["link", "game-files", "launch"]
+
+[[module]]
+name = "ui-generated"
+paths = ["ui/src/generated/**"]
+responsibility = "Generated protocol and kit types."
+may_use = []
+
+[[module]]
+name = "ui-pages"
+paths = ["ui/src/pages/**", "ui/src/main.ts"]
+responsibility = "One page per tab."
+may_use = ["ui-core", "ui-generated"]
+
+[[module]]
+name = "ui-core"
+paths = ["ui/src/**", "ui/build.ts"]
+responsibility = "Tauri invoke wrappers, protocol model and pure helpers (records, replays, playback, stats, drawing)."
+may_use = ["ui-generated"]
+
+[[module]]
+name = "scripts"
+thresholds = { function_lines = 150, function_complexity = 30 }
+paths = ["scripts/**"]
+responsibility = "Kit fetch, install, cargo wrapper, icons."
+may_use = []
+
+[ignore]
+paths = ["src-tauri/lua-5.3.6/**", "src-tauri/target/**", "ui/node_modules/**", "**/fixtures/**", ".smashcraft/**", "ui/kit/**"]
