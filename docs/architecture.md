@@ -27,8 +27,8 @@ A module may use only the modules in its "may use" column. The UI talks to Rust 
 |---|---|---|
 | A key, binding or fighter action | not here: padbridge `model/src/lib.rs`; UI mirror `ui/src/model.ts` (`KEYS`, `Press`) | Smashcraft `keyBindings.ts` (K1/P1); `ui/src/generated/protocol.ts` from padbridge's Rust types in C1 |
 | A new pad preset | labels in `src-tauri/src/lib.rs` (`pad_presets`), `ui/src/model.ts` (`PadPreset`) | read from the snapshot's layout list in C1 |
-| Service TCP protocol types | crate `wc3-controller-model` v0.3.6 (`src-tauri/Cargo.toml`), `ui/src/model.ts` | padbridge `protocol` crate by tag + generated `ui/src/generated/protocol.ts` in C1 |
-| Service supervision and TCP client | `src-tauri/src/link.rs` (`WC3_CONTROLLER_*`, `wc3-controller` binary) | `PADBRIDGE_*`, `padbridge` in C1; `link/{supervisor,client}.rs` in C3 |
+| Service TCP protocol types | crate `padbridge-model` v0.4.0 (`src-tauri/Cargo.toml`), `ui/src/model.ts` | padbridge `protocol` crate by tag + generated `ui/src/generated/protocol.ts` in C1 |
+| Service supervision and TCP client | `src-tauri/src/link.rs` (`WC3_CONTROLLER_*`, `padbridge` binary) | `PADBRIDGE_*`, `padbridge` in C1; `link/{supervisor,client}.rs` in C3 |
 | Plug-in protocol | not here: padbridge `src/service/plugin.rs`; the client only passes `--plugin` (`plugin_program` in `src-tauri/src/link.rs`) | padbridge `protocol/src/plugin.rs` in P1 |
 | Controller page | `ui/src/pages/controller.ts` (face layout hardcoded), commands in `src-tauri/src/lib.rs` | face layout from the snapshot in C1; `src-tauri/src/commands/controller.rs` in C3 |
 | Records parsing and history | `ui/src/records.ts`, `ui/src/history.ts`, folders in `src-tauri/src/records.rs` | kit `records.js` in C2; `game/records.rs` in C3 |

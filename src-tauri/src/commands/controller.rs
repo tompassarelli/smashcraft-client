@@ -1,6 +1,6 @@
 use serde::Serialize;
 use tauri::{AppHandle, State};
-use wc3_controller_model::{Binding, ClientMessage, PadKind, PadPreset, ProfileChoice, RightStick, TriggerShields};
+use padbridge_model::{Binding, ClientMessage, PadKind, PadPreset, ProfileChoice, RightStick, TriggerShields};
 
 use crate::autostart;
 use crate::link::ControllerState;
@@ -70,7 +70,7 @@ pub fn bindings(state: State<AppState>) -> Bindings {
     let controller = state.link.snapshot.lock().unwrap().settings.clone();
     Bindings {
         smashcraft: controller.bindings(PadKind::default()),
-        smashcraft_menus: wc3_controller_model::menu_pointer_bindings(),
+        smashcraft_menus: padbridge_model::menu_pointer_bindings(),
         profile: settings.profile,
         pad_preset: controller.pad_preset,
         tap_jump: controller.tap_jump,
@@ -81,7 +81,7 @@ pub fn bindings(state: State<AppState>) -> Bindings {
             .map(|(preset, label)| PadPresetBindings {
                 preset,
                 label,
-                bindings: wc3_controller_model::pad_bindings(preset, controller.triggers, controller.right_stick, PadKind::default()),
+                bindings: padbridge_model::pad_bindings(preset, controller.triggers, controller.right_stick, PadKind::default()),
             })
             .collect(),
     }

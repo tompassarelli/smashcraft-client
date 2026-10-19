@@ -41,7 +41,7 @@ is Wisp's [clean-room rules](https://github.com/tompassarelli/wisp/blob/main/doc
 Download the release for your system from
 [Releases](https://github.com/tompassarelli/smashcraft-client/releases) and
 unpack it anywhere. It holds `smashcraft` (`smashcraft.exe`), the
-[wc3-controller](https://github.com/tompassarelli/padbridge) service
+[padbridge](https://github.com/tompassarelli/padbridge) service
 beside it, and `VERSION` naming the commits it was built from. Run
 `smashcraft`. On Linux the app needs WebKitGTK 4.1 and libayatana-appindicator
 (`libwebkit2gtk-4.1-0 libayatana-appindicator3-1` on Debian and Ubuntu).
@@ -80,14 +80,14 @@ prefix that holds the map, run with `wine` (`WINE`) and that `WINEPREFIX`.
 
 Controller support is optional: Smashcraft plays on the keyboard alone, and
 the service turns a pad into the same keys. The client never reads the pad itself. It connects to the Warcraft III
-Controller service ([wc3-controller](https://github.com/tompassarelli/padbridge),
+Controller service ([padbridge](https://github.com/tompassarelli/padbridge),
 with Smashcraft's plug-in from smashcraft:controller) on 127.0.0.1:47631 and
 shows its status, live input and bindings; the messages and plain-language
-status rows come from wc3-controller's model crate, pinned by tag in
+status rows come from padbridge's model crate (padbridge-model), pinned by tag in
 src-tauri/Cargo.toml. When nothing answers and the player has
 turned controller support on (remembered in the client's settings), it starts
 the bundled service with `--service --plugin wc3-journal`:
-`WC3_CONTROLLER_SERVICE`, else `wc3-controller` beside the client, else on the
+`WC3_CONTROLLER_SERVICE`, else `padbridge` beside the client, else on the
 `PATH`; the plug-in is `wc3-journal` beside the client, else the one
 Smashcraft's `bun wisp controller` installs; without one the service runs on
 Any map. Releases bundle the service, not the plug-in. A started service gets 10 s
@@ -199,7 +199,7 @@ in the system configuration; its launcher sets `SMASHCRAFT_TS` to
 ~/code/smashcraft/main/ts when that exists.
 
 CI (.github/workflows/ci.yml) builds and tests on Linux and Windows and
-uploads each build with the wc3-controller service of the tag pinned in
+uploads each build with the padbridge service of the tag pinned in
 src-tauri/Cargo.toml. Pushing a tag `vX.Y.Z` (`safe-push --tag vX.Y.Z`)
 attaches both to that release.
 

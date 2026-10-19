@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use wc3_controller_model::{ClientMessage, ProfileChoice};
+use padbridge_model::{ClientMessage, ProfileChoice};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]

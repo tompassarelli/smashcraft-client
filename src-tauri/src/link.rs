@@ -12,9 +12,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use wc3_controller_model::{self as model, ClientMessage, InputView, Light, Link, ServiceMessage, Snapshot, View};
+use padbridge_model::{self as model, ClientMessage, InputView, Light, Link, ServiceMessage, Snapshot, View};
 
-/// The service's local interface (wc3-controller:model).
+/// The service's local interface (padbridge:model).
 pub const SERVICE_PORT: u16 = 47631;
 /// The interface port; `WC3_CONTROLLER_PORT` overrides it for a test service.
 pub fn service_port() -> u16 {
@@ -140,8 +140,8 @@ pub trait Starter: Send + Sync + 'static {
     fn start(&self) -> Result<(), String>;
 }
 
-/// The bundled service: `WC3_CONTROLLER_SERVICE`, else `wc3-controller` beside
-/// this executable, else `wc3-controller` on the PATH, with Smashcraft's
+/// The bundled service: `WC3_CONTROLLER_SERVICE`, else `padbridge` beside
+/// this executable, else `padbridge` on the PATH, with Smashcraft's
 /// plug-in ([`plugin_program`]). Started detached so it keeps serving after the
 /// window closes.
 pub struct BundledService {
@@ -152,7 +152,7 @@ pub fn service_program() -> PathBuf {
     if let Some(path) = std::env::var_os("WC3_CONTROLLER_SERVICE") {
         return path.into();
     }
-    let name = if cfg!(windows) { "wc3-controller.exe" } else { "wc3-controller" };
+    let name = if cfg!(windows) { "padbridge.exe" } else { "padbridge" };
     std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.join(name)))
@@ -296,7 +296,7 @@ mod tests {
     use super::*;
     use std::net::TcpListener;
     use std::sync::mpsc;
-    use wc3_controller_model::{Game, Pad, Phase, Profile, ProfileChoice, Session};
+    use padbridge_model::{Game, Pad, Phase, Profile, ProfileChoice, Session};
 
     /// xorshift64: the same cases on every run.
     fn random(mut seed: u64) -> impl FnMut(u64) -> u64 {

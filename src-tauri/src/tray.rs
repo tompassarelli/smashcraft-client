@@ -1,6 +1,6 @@
 //! Tray icon pixels: a status light in the overall colour.
 
-use wc3_controller_model::Light;
+use padbridge_model::Light;
 
 pub const SIZE: u32 = 32;
 

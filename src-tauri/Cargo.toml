@@ -26,7 +26,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 flate2 = "1"
-wc3-controller-model = { git = "https://github.com/tompassarelli/padbridge", tag = "v0.3.6" }
+padbridge-model = { git = "https://github.com/tompassarelli/padbridge", tag = "v0.4.0" }
 
 [profile.release]
 codegen-units = 16

@@ -2172,6 +2172,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "padbridge-model"
+version = "0.4.0"
+source = "git+https://github.com/tompassarelli/padbridge?tag=v0.4.0#63ca9dd384aeabfe3e2785fe00528f6b1819f1ff"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "pango"
 version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2899,13 +2908,13 @@ version = "0.1.0"
 dependencies = [
  "cc",
  "flate2",
+ "padbridge-model",
  "serde",
  "serde_json",
  "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-autostart",
- "wc3-controller-model",
 ]
 
 [[package]]
@@ -3888,15 +3897,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
-]
-
-[[package]]
-name = "wc3-controller-model"
-version = "0.3.6"
-source = "git+https://github.com/tompassarelli/padbridge?tag=v0.3.6#1cedc4fab49395c96ac0588bcf571c7b99939ddf"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]

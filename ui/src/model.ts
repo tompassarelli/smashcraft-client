@@ -1,4 +1,4 @@
-// Mirrors wc3-controller:model (Rust, serde) and the client's commands.
+// Mirrors padbridge:model (Rust, serde) and the client's commands.
 
 export type Light = "green" | "amber" | "red" | "off";
 export type Link = "off" | "starting" | "connected";

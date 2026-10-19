@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use tauri::image::Image;
 use tauri::{AppHandle, Emitter};
-use wc3_controller_model::{InputView, Light};
+use padbridge_model::{InputView, Light};
 
 use crate::link::{self, ControllerState};
 use crate::tray;
