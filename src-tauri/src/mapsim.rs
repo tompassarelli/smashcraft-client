@@ -60,7 +60,8 @@ fn stamp_of_file(path: &Path) -> (u64, u64) {
 
 fn war3map_lua(path: &Path) -> Result<String, String> {
     let mut file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-    crate::mpq::read_file_from(&mut file, "war3map.lua").map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+    let bytes = crate::mpq::read_file_from(&mut file, "war3map.lua")?.ok_or("war3map.lua isn't in the archive")?;
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
 /// A map file's modified time and length when read, and the version it holds.

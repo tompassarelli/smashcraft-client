@@ -114,13 +114,13 @@ fn decompress(sector: &[u8], size: usize) -> Result<Vec<u8>, String> {
     }
 }
 
-/// The file `name` in the MPQ archive in `bytes`; the archive may follow a map header.
-pub fn read_file(bytes: &[u8], name: &str) -> Result<Vec<u8>, String> {
+/// The file `name` in the MPQ archive in `bytes`, None when it holds no such file; the archive may follow a map header.
+pub fn read_file(bytes: &[u8], name: &str) -> Result<Option<Vec<u8>>, String> {
     read_file_from(&mut std::io::Cursor::new(bytes), name)
 }
 
-/// The file `name` in the MPQ archive `source` holds, reading only the parts it needs.
-pub fn read_file_from<R: Read + Seek>(source: &mut R, name: &str) -> Result<Vec<u8>, String> {
+/// The file `name` in the MPQ archive `source`, reading only the parts it needs; None when it holds no such file.
+pub fn read_file_from<R: Read + Seek>(source: &mut R, name: &str) -> Result<Option<Vec<u8>>, String> {
     let length = source.seek(SeekFrom::End(0)).map_err(|e| e.to_string())? as usize;
     let archive = (0..length).step_by(512).find(|&at| read_at(source, at, 4).is_ok_and(|magic| magic == MAGIC)).ok_or("not an MPQ archive")?;
     let shift = read_at(source, archive + 14, 2).map(|b| u16::from_le_bytes([b[0], b[1]]))?;
@@ -145,24 +145,29 @@ pub fn read_file_from<R: Read + Seek>(source: &mut R, name: &str) -> Result<Vec<
             break;
         }
     }
-    let [offset, packed, size, flags] = block.ok_or_else(|| format!("{name} isn't in the archive"))?;
-    if flags & EXISTS == 0 {
-        return Err(format!("{name} was deleted from the archive"));
+    match block {
+        Some(block) if block[3] & EXISTS != 0 => decode(source, archive, sector_size, block, name).map(Some).map_err(|e| format!("{name}: {e}")),
+        _ => Ok(None),
     }
+}
+
+/// The key of file `name`'s sectors, 0 when it isn't encrypted.
+fn file_key(name: &str, offset: u32, size: u32, flags: u32) -> u32 {
+    if flags & ENCRYPTED == 0 {
+        return 0;
+    }
+    let key = hash(name.rsplit(['\\', '/']).next().unwrap_or(name), 3);
+    if flags & FIX_KEY != 0 { key.wrapping_add(offset) ^ size } else { key }
+}
+
+fn decode<R: Read + Seek>(source: &mut R, archive: usize, sector_size: usize, [offset, packed, size, flags]: [u32; 4], name: &str) -> Result<Vec<u8>, String> {
     if flags & IMPLODED != 0 {
-        return Err(format!("{name} is imploded, which the client doesn't read"));
+        return Err("it is imploded, which the client doesn't read".to_owned());
     }
     let owned = read_at(source, archive + offset as usize, packed as usize)?;
     let data = owned.as_slice();
+    let key = file_key(name, offset, size, flags);
     let size = size as usize;
-    let mut key = 0;
-    if flags & ENCRYPTED != 0 {
-        let base = name.rsplit(['\\', '/']).next().unwrap_or(name);
-        key = hash(base, 3);
-        if flags & FIX_KEY != 0 {
-            key = key.wrapping_add(offset) ^ size as u32;
-        }
-    }
     let compressed = flags & COMPRESSED != 0;
     if flags & SINGLE_UNIT != 0 {
         let mut unit = data.to_vec();
@@ -183,7 +188,7 @@ pub fn read_file_from<R: Read + Seek>(source: &mut R, name: &str) -> Result<Vec<
         (0..=sectors).map(|i| (i * sector_size).min(packed as usize)).collect()
     };
     if bounds.windows(2).any(|w| w[0] > w[1]) || bounds.last().is_some_and(|&end| end > data.len()) {
-        return Err(format!("{name}'s sector table is malformed"));
+        return Err("its sector table is malformed".to_owned());
     }
     let mut out = Vec::with_capacity(size);
     for (index, window) in bounds.windows(2).enumerate() {
@@ -203,6 +208,52 @@ pub fn read_file_from<R: Read + Seek>(source: &mut R, name: &str) -> Result<Vec<
 }
 
 #[cfg(test)]
+pub(crate) mod build {
+    use super::*;
+
+    fn encrypt(words: &mut [u32], mut key: u32) {
+        let table = crypt_table();
+        let mut seed = 0xEEEE_EEEEu32;
+        for word in words.iter_mut() {
+            seed = seed.wrapping_add(table[(0x400 + (key & 0xFF)) as usize]);
+            let plain = *word;
+            *word = plain ^ key.wrapping_add(seed);
+            key = ((!key << 0x15).wrapping_add(0x1111_1111)) | (key >> 0x0B);
+            seed = plain.wrapping_add(seed).wrapping_add(seed << 5).wrapping_add(3);
+        }
+    }
+
+    fn put_table(out: &mut Vec<u8>, mut entries: Vec<u32>, name: &str) {
+        encrypt(&mut entries, hash(name, 3));
+        out.extend(entries.iter().flat_map(|word| word.to_le_bytes()));
+    }
+
+    /// A format 1 archive of single-unit files `(name, bytes, size)`, compressed when `bytes` is shorter than `size`.
+    pub(crate) fn archive(files: &[(&str, &[u8], usize)]) -> Vec<u8> {
+        let slots = 16u32;
+        let mut out = vec![0u8; 32];
+        let (mut hashes, mut blocks) = (vec![EMPTY; slots as usize * 4], Vec::new());
+        for (index, &(name, bytes, size)) in files.iter().enumerate() {
+            let flags = EXISTS | SINGLE_UNIT | if bytes.len() < size { COMPRESSED } else { 0 };
+            blocks.extend([out.len() as u32, bytes.len() as u32, size as u32, flags]);
+            out.extend_from_slice(bytes);
+            let slot = (0..slots).map(|probe| ((hash(name, 0) % slots + probe) % slots) as usize * 4).find(|&at| hashes[at + 3] == EMPTY).unwrap();
+            hashes[slot..slot + 4].copy_from_slice(&[hash(name, 1), hash(name, 2), 0, index as u32]);
+        }
+        let hash_offset = out.len() as u32;
+        put_table(&mut out, hashes, "(hash table)");
+        let block_offset = out.len() as u32;
+        put_table(&mut out, blocks, "(block table)");
+        let header = [MAGIC.as_slice(), &32u32.to_le_bytes(), &(out.len() as u32).to_le_bytes(), &0u16.to_le_bytes(), &3u16.to_le_bytes()].concat();
+        out[..16].copy_from_slice(&header);
+        for (at, value) in [(16, hash_offset), (20, block_offset), (24, slots), (28, files.len() as u32)] {
+            out[at..at + 4].copy_from_slice(&value.to_le_bytes());
+        }
+        out
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::path::Path;
@@ -214,12 +265,12 @@ mod tests {
     #[test]
     fn reads_compressed_multi_sector_encrypted_and_plain_files_stormlib_wrote() {
         let map = fixture();
-        let lua = String::from_utf8(read_file(&map, "war3map.lua").unwrap()).unwrap();
+        let lua = String::from_utf8(read_file(&map, "war3map.lua").unwrap().unwrap()).unwrap();
         assert!(lua.starts_with("-- fixture war3map.lua"));
         assert_eq!(lua.lines().count(), 3001);
-        assert_eq!(read_file(&map, "secret\\note.txt").unwrap(), b"an encrypted file with a fixed key\n");
-        assert_eq!(read_file(&map, "plain.txt").unwrap(), b"stored as it is\n");
-        assert!(read_file(&map, "missing.txt").unwrap_err().contains("isn't in the archive"));
+        assert_eq!(read_file(&map, "secret\\note.txt").unwrap().unwrap(), b"an encrypted file with a fixed key\n");
+        assert_eq!(read_file(&map, "plain.txt").unwrap().unwrap(), b"stored as it is\n");
+        assert_eq!(read_file(&map, "missing.txt").unwrap(), None);
         assert_eq!(read_file(b"not a map", "war3map.lua").unwrap_err(), "not an MPQ archive");
     }
 }

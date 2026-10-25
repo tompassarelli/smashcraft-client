@@ -29,7 +29,7 @@ pub fn path_in_game(map: &Path) -> Result<String, String> {
 
 pub fn read(map: &Path) -> Result<MapFacts, String> {
     let file = std::fs::read(map).map_err(|e| format!("{}: {e}", map.display()))?;
-    facts(&file, &path_in_game(map)?, |name| mpq::read_file(&file, name).ok())
+    facts(&file, &path_in_game(map)?)
 }
 
 fn xoro_update(start: u32, bytes: &[u8]) -> u32 {
@@ -44,11 +44,11 @@ fn xoro_update(start: u32, bytes: &[u8]) -> u32 {
     value
 }
 
-fn xoro(entry: &impl Fn(&str) -> Option<Vec<u8>>) -> Result<u32, String> {
-    let script = SCRIPT_ENTRIES.iter().find_map(|name| entry(name)).ok_or("the map has no war3map.j or war3map.lua")?;
+fn xoro(file: &[u8]) -> Result<u32, String> {
+    let script = SCRIPT_ENTRIES.iter().find_map(|name| mpq::read_file(file, name).transpose()).ok_or("the map has no war3map.j or war3map.lua")??;
     let mut value = xoro_update(0, &script);
     for name in CHECKED_ENTRIES {
-        if let Some(bytes) = entry(name) {
+        if let Some(bytes) = mpq::read_file(file, name)? {
             value = xoro_update(value, &xoro_update(0, &bytes).to_le_bytes());
         }
     }
@@ -78,9 +78,9 @@ impl Cursor<'_> {
     }
 }
 
-/// The facts of a map file at `path` whose archive entries `entry` reads.
-pub fn facts(file: &[u8], path: &str, entry: impl Fn(&str) -> Option<Vec<u8>>) -> Result<MapFacts, String> {
-    let w3i = entry("war3map.w3i").ok_or("the map has no war3map.w3i")?;
+/// The facts of map `file` at `path`; an entry they cover that the archive holds but the client can't decode refuses the map.
+fn facts(file: &[u8], path: &str) -> Result<MapFacts, String> {
+    let w3i = mpq::read_file(file, "war3map.w3i")?.ok_or("the map has no war3map.w3i")?;
     let mut info = Cursor { bytes: &w3i, at: 0 };
     let format = info.int()?;
     if format != FORMAT {
@@ -117,11 +117,43 @@ pub fn facts(file: &[u8], path: &str, entry: impl Fn(&str) -> Option<Vec<u8>>) -
         size: file.len() as u32,
         crc32: crc32fast::hash(file),
         sha1: sha1(file),
-        xoro: xoro(&entry)?,
+        xoro: xoro(file)?,
         width: width as u16,
         height: height as u16,
         layout: u8::from(flags & USE_CUSTOM_FORCES != 0) | (u8::from(flags & FIXED_PLAYER_SETTINGS != 0) << 1),
         forces,
         players,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mpq::build::archive;
+
+    fn w3i() -> Vec<u8> {
+        let mut bytes = [FORMAT.to_le_bytes().as_slice(), &[0; 24], &[0; 4], &[0; 56], &0i32.to_le_bytes()].concat();
+        for (size, count) in ENVIRONMENT {
+            bytes.extend(vec![0; usize::from(size.max(1)) * count]);
+        }
+        bytes.extend([0; 8]);
+        bytes
+    }
+
+    #[test]
+    fn a_map_with_an_entry_the_client_cant_decode_is_refused_naming_it_instead_of_hosted_with_a_wrong_checksum() {
+        let (info, script, terrain) = (w3i(), b"-- war3map.lua".as_slice(), b"terrain!".as_slice());
+        let readable = archive(&[("war3map.w3i", &info, info.len()), ("war3map.lua", script, script.len()), ("war3map.w3e", terrain, terrain.len())]);
+        let expected = xoro_update(xoro_update(0, script), &xoro_update(0, terrain).to_le_bytes());
+        assert_eq!(facts(&readable, "Maps\\test.w3x").unwrap().xoro, expected);
+        let bzip2 = [0x10, 1, 2, 3].as_slice();
+        for broken in ["war3map.w3i", "war3map.lua", "war3map.w3e"] {
+            let entries: Vec<(&str, &[u8], usize)> = [("war3map.w3i", info.as_slice()), ("war3map.lua", script), ("war3map.w3e", terrain)]
+                .into_iter()
+                .map(|(name, bytes)| if name == broken { (name, bzip2, 64) } else { (name, bytes, bytes.len()) })
+                .collect();
+            let unreadable = archive(&[entries.as_slice(), &[("scripts\\war3map.lua", script, script.len())]].concat());
+            assert_eq!(facts(&unreadable, "Maps\\test.w3x").unwrap_err(), format!("{broken}: a sector uses compression 0x10, which the client doesn't read"));
+        }
+    }
 }
