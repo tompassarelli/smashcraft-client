@@ -1,5 +1,5 @@
 // The Rust side's commands and events (app.withGlobalTauri exposes window.__TAURI__).
-import type { Bindings, ControllerState, InputView, OnlineState, PlayState, PadPreset, ProfileChoice, RightStick, TriggerShields } from "./model";
+import type { Bindings, ControllerState, InputView, PlayState, PadPreset, ProfileChoice, RightStick, TriggerShields } from "./model";
 import type { HistoryStore, RecordFile } from "./records";
 import type { ReplayFile, WarcraftGame } from "./replays";
 
@@ -8,9 +8,9 @@ type TauriGlobal = {
   event: { listen<T>(event: string, handler: (event: { payload: T }) => void): Promise<() => void> };
 };
 
-const tauri = (): TauriGlobal => (window as unknown as { __TAURI__: TauriGlobal }).__TAURI__;
+export const tauri = (): TauriGlobal => (window as unknown as { __TAURI__: TauriGlobal }).__TAURI__;
 
-const invoke = <T>(command: string, args?: Record<string, unknown>) => tauri().core.invoke<T>(command, args);
+export const invoke = <T>(command: string, args?: Record<string, unknown>) => tauri().core.invoke<T>(command, args);
 
 export const api = {
   controllerState: () => invoke<ControllerState>("controller_state"),
@@ -30,15 +30,6 @@ export const api = {
   readRecords: () => invoke<RecordFile[]>("read_records"),
   history: () => invoke<unknown>("history"),
   saveHistory: (history: HistoryStore) => invoke<void>("save_history", { history }),
-  onlineState: () => invoke<OnlineState>("online_state"),
-  menuPageChoice: () => invoke<boolean | null>("menu_page_choice"),
-  declineMenuPage: () => invoke<void>("decline_menu_page"),
-  onlineSetup: () => invoke<OnlineState>("online_setup"),
-  onlineHost: () => invoke<OnlineState>("online_host"),
-  onlineJoin: (code: string) => invoke<OnlineState>("online_join", { code }),
-  onlineStartNow: () => invoke<boolean>("online_start_now"),
-  onlineCancel: () => invoke<void>("online_cancel"),
-  onOnline: (handler: (state: OnlineState) => void) => tauri().event.listen<OnlineState>("online", (e) => handler(e.payload)),
   readReplays: () => invoke<ReplayFile[]>("read_replays"),
   readReplayParts: (folder: string, serial: number, parts: number) => invoke<string[]>("read_replay_parts", { folder, serial, parts }),
   keepReplay: (name: string, text: string) => invoke<string>("keep_replay", { name, text }),

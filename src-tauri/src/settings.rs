@@ -14,6 +14,8 @@ pub struct Settings {
     pub record_folders: Option<Vec<String>>,
     /// Whether the player agreed to add Smashcraft's page to Warcraft III's menus (online play); none until asked.
     pub menu_page: Option<bool>,
+    /// Whether the player opted in to Smashcraft Servers; none until they choose.
+    pub smashcraft_servers: Option<bool>,
 }
 
 impl Settings {
@@ -64,6 +66,7 @@ mod tests {
             profile: ProfileChoice::AnyMap,
             record_folders: Some(vec!["/games/CustomMapData".into()]),
             menu_page: Some(true),
+            smashcraft_servers: Some(true),
         };
         assert!(matches!(
             settings.greeting().as_slice(),

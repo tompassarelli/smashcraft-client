@@ -140,6 +140,22 @@ The first visit asks once to add Smashcraft's page to Warcraft III's menus
 runner is src-tauri/src/online.rs and the page
 ui/src/pages/online.ts.
 
+"Play on" offers Smashcraft Servers beside Battle.net. It stays off until the
+player opts in on a screen showing "Smashcraft changes how Warcraft connects
+while it runs and Blizzard has not approved it." (remembered in the client's
+settings). Then Host and Join run Wisp's relay agent, `AgentHost`, inside the client
+(`relay-agent`, pinned to a wisp main SHA in src-tauri/Cargo.toml) against the
+public relay, 159.89.205.60 port 7457 (`SMASHCRAFT_RELAY` overrides it;
+wisp:docs/relay.md, "Where the relay runs, NAT, and who can join"). Host reads
+the current map's facts and shows the relay's room id as the code; Join takes
+it. A joiner whose map's SHA-1 differs from the game's is refused before the
+countdown, with both hashes named. Warcraft III must have been started with
+Play. These runs need the Smashcraft Servers switch, which a build takes from
+the private `smashcraft-servers` crate through the Cargo feature of that name
+(the crate goes in src-tauri/servers, which holds a stand-in). The public
+build has no switch, so its Host and Join through Smashcraft Servers say so
+and do nothing else (src-tauri/src/launch/, src-tauri/src/game/map_facts.rs).
+
 ## Replays
 
 Every client records each match as a replay in its CustomMapData folder: a

@@ -1,13 +1,40 @@
 use std::sync::{Arc, Mutex};
 
 use tauri::image::Image;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter};
 use padbridge_model::{InputView, Light};
 
 use crate::link::{self, ControllerState};
+use crate::state::show_window;
 use crate::tray;
 
 pub const TRAY: &str = "status";
+
+/// The tray light, starting at `initial`, with Open and Quit; a left click opens the window.
+pub fn add_tray(app: &tauri::App, initial: Light) -> tauri::Result<()> {
+    let open = MenuItem::with_id(app, "open", "Open Smashcraft", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &quit])?;
+    TrayIconBuilder::with_id(TRAY)
+        .icon(Image::new_owned(tray::light_rgba(initial), tray::SIZE, tray::SIZE))
+        .tooltip(tray::tooltip(initial))
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "open" => show_window(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                show_window(tray.app_handle());
+            }
+        })
+        .build(app)?;
+    Ok(())
+}
 
 pub struct TauriSink {
     pub app: AppHandle,

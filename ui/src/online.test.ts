@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { OnlineMode } from "./model";
-import { looksLikeCode, onlineView } from "./online";
+import { looksLikeCode, type Network, networkView, onlineView, SMASHCRAFT_SERVERS_OPT_IN } from "./online";
 
 /** mulberry32: the same cases on every run. */
 const random = (seed: number) => () => {
@@ -41,4 +41,20 @@ test("a typed code is sent exactly when it has eight characters besides spaces a
     }
     expect(looksLikeCode(typed)).toBe(count === 8);
   }
+});
+
+test("Smashcraft Servers is off until the player opts in: picking it before then keeps Battle.net and asks on the opt-in screen (seed 8, 2000 cases)", () => {
+  const next = random(8);
+  const pick = <T>(xs: readonly T[]) => xs[Math.floor(next() * xs.length)]!;
+  for (let i = 0; i < 2000; i++) {
+    const picked = pick<Network>(["battle.net", "smashcraft_servers"]);
+    const optedIn = pick([null, false, true]);
+    const view = networkView(picked, optedIn);
+    expect(view.network).toBe(picked === "smashcraft_servers" && optedIn === true ? "smashcraft_servers" : "battle.net");
+    expect(view.askOptIn).toBe(picked === "smashcraft_servers" && optedIn !== true);
+  }
+});
+
+test("the opt-in screen's text is Tom's, word for word (decision, 25 October 2026)", () => {
+  expect(SMASHCRAFT_SERVERS_OPT_IN).toBe("Smashcraft changes how Warcraft connects while it runs and Blizzard has not approved it.");
 });

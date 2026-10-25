@@ -18,7 +18,7 @@ name = "tests"
 thresholds = { function_lines = 150, function_complexity = 30 }
 paths = ["**/*.test.ts", "src-tauri/tests/**", "ui/test/**"]
 responsibility = "Bun and cargo tests."
-may_use = ["ui-generated", "ui-core", "ui-pages", "scripts", "link", "game-files", "launch", "app"]
+may_use = ["ui-generated", "ui-core", "ui-pages", "scripts", "link", "game-files", "launch", "app", "servers"]
 
 [[module]]
 name = "link"
@@ -36,14 +36,20 @@ may_use = []
 [[module]]
 name = "launch"
 paths = ["src-tauri/src/launch/**", "src-tauri/src/play.rs", "src-tauri/src/online.rs"]
-responsibility = "Start Warcraft III on the installed map and run bun wisp online."
-may_use = ["game-files"]
+responsibility = "Start Warcraft III on the installed map, run bun wisp online and relay matches on Smashcraft Servers."
+may_use = ["game-files", "servers"]
+
+[[module]]
+name = "servers"
+paths = ["src-tauri/servers/**"]
+responsibility = "Stand-in for the private Smashcraft Servers crate, taken with the smashcraft-servers feature."
+may_use = []
 
 [[module]]
 name = "app"
 paths = ["src-tauri/src/**", "src-tauri/build.rs"]
 responsibility = "Tauri setup, tray, window, settings, single-instance lock and command handlers grouped by page."
-may_use = ["link", "game-files", "launch"]
+may_use = ["link", "game-files", "launch", "servers"]
 
 [[module]]
 name = "ui-generated"

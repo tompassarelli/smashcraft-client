@@ -12,6 +12,7 @@ pub struct AppState {
     pub settings: Mutex<Settings>,
     pub history: records::History,
     pub online: Arc<online::Online>,
+    pub relay: Arc<crate::launch::relay::Relay>,
     pub log_dir: Option<std::path::PathBuf>,
     pub kept: replays::Kept,
     pub mapsims: mapsim::MapSims,

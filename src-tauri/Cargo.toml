@@ -27,6 +27,17 @@ serde_json = "1.0"
 sha2 = "0.10"
 flate2 = "1"
 padbridge-model = { git = "https://github.com/tompassarelli/padbridge", tag = "v0.4.0" }
+sha1 = "0.10"
+crc32fast = "1"
+relay-agent = { git = "https://github.com/tompassarelli/wisp", rev = "fdaac7e67b827a68a58ca6a7741022c1f0ae2753" }
+relay-proto = { git = "https://github.com/tompassarelli/wisp", rev = "fdaac7e67b827a68a58ca6a7741022c1f0ae2753" }
+smashcraft-servers = { path = "servers", optional = true }
+
+[dev-dependencies]
+relay = { git = "https://github.com/tompassarelli/wisp", rev = "fdaac7e67b827a68a58ca6a7741022c1f0ae2753" }
+
+[features]
+smashcraft-servers = ["dep:smashcraft-servers"]
 
 [profile.release]
 codegen-units = 16

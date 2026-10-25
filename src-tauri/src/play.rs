@@ -70,6 +70,7 @@ pub struct PlayState {
 #[derive(Default)]
 pub struct Play {
     state: Mutex<PlayState>,
+    warcraft: Mutex<Option<u32>>,
 }
 
 impl Play {
@@ -77,6 +78,11 @@ impl Play {
         let mut state = self.state.lock().unwrap().clone();
         state.available = current_map(maps_folders).is_some();
         state
+    }
+
+    /// The Warcraft III that Play started, while it runs.
+    pub fn warcraft_pid(&self) -> Option<u32> {
+        *self.warcraft.lock().unwrap()
     }
 
     pub fn start(&'static self, maps_folders: &[PathBuf], changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
@@ -97,8 +103,10 @@ impl Play {
                 }
                 match command.spawn() {
                     Ok(mut child) => {
+                        *self.warcraft.lock().unwrap() = Some(child.id());
                         std::thread::spawn(move || {
                             let _ = child.wait();
+                            *self.warcraft.lock().unwrap() = None;
                         });
                         lines.push("Warcraft III is starting the match.".to_owned());
                         true
