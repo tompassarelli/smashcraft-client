@@ -30,6 +30,13 @@ Melee, and the same principles cover both.
   a game's memory.
 - **Play fair.** No DRM bypass, no Battle.net emulation, no cheats, and nothing
   that touches other players or Blizzard's services.
+- **One opt-in change.** Patch 3.0 removed LAN, so if you turn on
+  Smashcraft Servers beside Battle.net, the client turns Warcraft III's LAN
+  connection back on while it runs, as W3Champions does, and nothing else.
+  Blizzard has not approved it, and the opt-in says so. Without it the client
+  never touches the game. Its internals stay in a private repository and ship
+  compiled; after a Warcraft patch it may stop working, Smashcraft Servers
+  then shows unavailable, and Battle.net play is unaffected.
 - **Original work.** Our own code only. No code from AGPL projects such as
   Warsmash, and "Warcraft" stays out of our product names.
 
