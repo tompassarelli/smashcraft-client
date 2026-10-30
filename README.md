@@ -221,6 +221,8 @@ per commit, `current`, the `smashcraft` launcher and a `runtime` out-link), neve
 in the system configuration; its launcher sets `SMASHCRAFT_TS` to
 ~/code/smashcraft/main/ts when that exists.
 
+The clean-room check (clean-room/, the rules of wisp:docs/clean-room.md "The check") refuses game-format files, copied game scripts, memory access and address tables in the tracked tree, unless clean-room-allowlist.tsv lists the path as `original` or `generated` with how it was made. Enable it once per clone with `git config core.hooksPath .githooks`; it then runs before every push, and in CI.
+
 CI (.github/workflows/ci.yml) builds and tests on Linux and Windows and
 uploads each build with the padbridge service of the tag pinned in
 src-tauri/Cargo.toml. Pushing a tag `vX.Y.Z` (`safe-push --tag vX.Y.Z`)
