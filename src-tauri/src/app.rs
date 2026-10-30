@@ -45,11 +45,16 @@ pub fn setup(app: &mut App, instance: TcpListener, hidden: bool) -> Result<(), B
         let app = app.handle().clone();
         move || instance_lock::listen(instance, move || show_window(&app))
     });
+    std::thread::spawn({
+        let (app, library) = (app.handle().clone(), warcraft.clone());
+        move || warcraft_replays::watch(library, move || app.state::<AppState>().folders())
+    });
     app.manage(AppState {
         link: shared,
         store,
         settings: Mutex::new(settings),
         history,
+        play: Arc::default(),
         online: Arc::default(),
         standalone: Arc::default(),
         relay: Arc::default(),
@@ -57,10 +62,6 @@ pub fn setup(app: &mut App, instance: TcpListener, hidden: bool) -> Result<(), B
         kept,
         mapsims,
         warcraft,
-    });
-    std::thread::spawn({
-        let (app, library) = (app.handle().clone(), warcraft_replays::Library::new(&app.path().app_data_dir()?));
-        move || warcraft_replays::watch(library, move || app.state::<AppState>().folders())
     });
     if !hidden {
         show_window(app.handle());

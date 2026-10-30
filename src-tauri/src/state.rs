@@ -4,13 +4,14 @@ use tauri::{AppHandle, Manager};
 
 use crate::link::Shared;
 use crate::settings::{Settings, Store};
-use crate::{mapsim, online, records, replays, warcraft_replays};
+use crate::{mapsim, online, play, records, replays, warcraft_replays};
 
 pub struct AppState {
     pub link: Arc<Shared>,
     pub store: Store,
     pub settings: Mutex<Settings>,
     pub history: records::History,
+    pub play: Arc<play::Play>,
     pub online: Arc<online::Online>,
     pub standalone: Arc<online::Online>,
     pub relay: Arc<crate::launch::relay::Relay>,

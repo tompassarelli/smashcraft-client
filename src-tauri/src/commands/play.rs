@@ -1,26 +1,22 @@
-use std::sync::LazyLock;
-
 use tauri::{AppHandle, Emitter, State};
 
 use crate::play;
 use crate::state::{AppState, maps_of};
 
-static PLAY: LazyLock<play::Play> = LazyLock::new(play::Play::default);
-
 #[tauri::command]
 pub fn play_state(state: State<AppState>) -> play::PlayState {
-    PLAY.state(&maps_of(&state))
+    state.play.state(&maps_of(&state))
 }
 
 #[tauri::command]
 pub fn play(app: AppHandle, state: State<AppState>) -> Result<play::PlayState, String> {
     let maps = maps_of(&state);
-    PLAY.start(&maps, state.link.in_match(), move |snapshot| {
+    state.play.start(&maps, state.link.in_match(), move |snapshot| {
         let _ = app.emit("play", snapshot);
     })?;
-    Ok(PLAY.state(&maps))
+    Ok(state.play.state(&maps))
 }
 
-pub fn warcraft_pid() -> Option<u32> {
-    PLAY.warcraft_pid()
+pub fn warcraft_pid(state: &AppState) -> Option<u32> {
+    state.play.warcraft_pid()
 }

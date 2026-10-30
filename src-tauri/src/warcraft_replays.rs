@@ -94,6 +94,7 @@ fn records_between(folder: &str, from: u64, to: u64) -> Vec<String> {
 }
 
 /// The client's library of Warcraft games: the copies and `games.json`.
+#[derive(Clone)]
 pub struct Library {
     dir: PathBuf,
 }

@@ -150,13 +150,13 @@ impl Play {
         *self.warcraft.lock().unwrap()
     }
 
-    pub fn start(&'static self, maps_folders: &[PathBuf], in_match: bool, changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
+    pub fn start(self: &Arc<Self>, maps_folders: &[PathBuf], in_match: bool, changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
         let map = current_map(maps_folders).ok_or("No Smashcraft map is in Warcraft III's Maps/00-Smashcraft folder yet.")?;
         let route = route_for(&map, &Setup::from_env(in_match));
         self.go(&map, route, crate::launch::window::raise_warcraft, Arc::new(changed))
     }
 
-    fn go(&'static self, map: &Path, route: Route, raise: impl FnOnce() -> Result<(), String>, changed: Changed) -> Result<(), String> {
+    fn go(self: &Arc<Self>, map: &Path, route: Route, raise: impl FnOnce() -> Result<(), String>, changed: Changed) -> Result<(), String> {
         if self.state.lock().unwrap().running {
             return Err("Play is already getting you into a match.".to_owned());
         }
@@ -187,9 +187,10 @@ impl Play {
                 match spawned {
                     Ok(mut child) => {
                         *self.warcraft.lock().unwrap() = Some(child.id());
+                        let play = Arc::clone(self);
                         std::thread::spawn(move || {
                             let _ = child.wait();
-                            *self.warcraft.lock().unwrap() = None;
+                            *play.warcraft.lock().unwrap() = None;
                         });
                         lines.push("Warcraft III is starting the match.".to_owned());
                         self.finish(lines, Some(true), &changed);
@@ -221,7 +222,7 @@ impl Play {
     }
 
     /// Runs `bun wisp play` and shows each line it prints, on either stream, as a step.
-    fn follow(&'static self, run: Run, changed: Changed) -> Result<(), String> {
+    fn follow(self: &Arc<Self>, run: Run, changed: Changed) -> Result<(), String> {
         let spawned = Command::new(&run.program).args(&run.args).current_dir(&run.dir).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn();
         let mut child = match spawned {
             Ok(child) => child,
@@ -235,10 +236,10 @@ impl Play {
         changed(self.state.lock().unwrap().clone());
         let (done, drained) = mpsc::channel();
         let follow = |stream: Box<dyn Read + Send>| {
-            let (changed, done) = (changed.clone(), done.clone());
+            let (play, changed, done) = (self.clone(), changed.clone(), done.clone());
             std::thread::spawn(move || {
                 for line in BufReader::new(stream).lines().map_while(Result::ok) {
-                    changed(self.say(line));
+                    changed(play.say(line));
                 }
                 let _ = done.send(());
             });
@@ -246,17 +247,18 @@ impl Play {
         follow(Box::new(child.stdout.take().expect("piped stdout")));
         follow(Box::new(child.stderr.take().expect("piped stderr")));
         drop(done);
+        let play = self.clone();
         std::thread::spawn(move || {
             let status = child.wait();
             for _ in 0..2 {
                 let _ = drained.recv_timeout(DRAIN);
             }
             let ok = status.as_ref().is_ok_and(|status| status.success());
-            let mut lines = self.state.lock().unwrap().lines.clone();
+            let mut lines = play.state.lock().unwrap().lines.clone();
             if !ok {
                 lines.push(status.map_or_else(|e| format!("Play stopped: {e}."), |status| format!("Play stopped before the match started ({status}).")));
             }
-            self.finish(lines, Some(ok), &changed);
+            play.finish(lines, Some(ok), &changed);
         });
         Ok(())
     }
@@ -334,7 +336,7 @@ mod tests {
 
     #[test]
     fn warcraft_already_in_a_match_starts_nothing_says_so_and_raises_its_window() {
-        let play: &'static Play = Box::leak(Box::default());
+        let play = Arc::new(Play::default());
         let (changed, rx) = collect();
         let raised = std::cell::Cell::new(0);
         let tools = tmp("in-match");
@@ -362,7 +364,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_failed_launch_keeps_every_step_line_and_the_error_and_a_missing_program_shows_the_os_error() {
-        let play: &'static Play = Box::leak(Box::default());
+        let play = Arc::new(Play::default());
         let (changed, rx) = collect();
         let map = Path::new("/maps/Smashcraft 0.3-dev.470.w3x");
         let script = "echo '1/7 Wine prefix: free'; echo '2/7 Battle.net: starting the Steam shortcut' ; echo 'Battle.net needs its owner to sign in' >&2; exit 3";

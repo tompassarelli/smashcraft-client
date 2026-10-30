@@ -88,7 +88,7 @@ fn start_relay(app: AppHandle, state: &AppState, mode: online::Mode, role: impl 
     let how = relay::Start {
         opted_in: state.settings.lock().unwrap().smashcraft_servers == Some(true),
         switch: lan_switch::built_in(),
-        warcraft_pid: play_page::warcraft_pid(),
+        warcraft_pid: play_page::warcraft_pid(state),
         relay: relay::relay_address(),
     };
     state.relay.start(mode, how, role, move |snapshot| {
