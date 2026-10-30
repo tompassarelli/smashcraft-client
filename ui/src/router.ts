@@ -1,7 +1,7 @@
 // Hash routes. A page is a function that fills its container and returns its cleanup.
 // New pages (history, stats, replays, online) are one entry in ROUTES.
 
-export type Page = (root: HTMLElement) => () => void;
+type Page = (root: HTMLElement) => () => void;
 export type Route = { path: string; title: string; page: Page };
 
 export function resolve(routes: Route[], hash: string): Route {

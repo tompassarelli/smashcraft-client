@@ -3,7 +3,7 @@
 // matches count; practice, training, endless and observed matches don't.
 import { type MatchRecord, writerOf } from "./records";
 
-export type FighterStats = {
+type FighterStats = {
   hero: string;
   matches: number;
   wins: number;
@@ -14,7 +14,7 @@ export type FighterStats = {
   combatMatches: number;
 };
 
-export type MatchupStats = { hero: string; opponent: string; matches: number; wins: number };
+type MatchupStats = { hero: string; opponent: string; matches: number; wins: number };
 
 export type Stats = { matches: number; fighters: FighterStats[]; matchups: MatchupStats[] };
 

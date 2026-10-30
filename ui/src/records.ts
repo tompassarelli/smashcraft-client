@@ -4,7 +4,7 @@
 /** A record file as the app reads it from a CustomMapData folder. */
 export type RecordFile = { folder: string; name: string; text: string; modified: number };
 
-export type Combat = { dealt: number; openings: number; techs: number; missedTechs: number; ledgeGrabs: number };
+type Combat = { dealt: number; openings: number; techs: number; missedTechs: number; ledgeGrabs: number };
 
 export type FighterRecord = {
   slot: string;

@@ -32,7 +32,7 @@ export type ReplayEntry = {
 export type ReplayRefusal = { file: string; reason: string };
 
 /** A file's lines: a Preload file's stored lines, or a plain file's. */
-export function fileLines(text: string): string[] {
+function fileLines(text: string): string[] {
   return preloadLines(text) ?? text.replace(/\r\n/g, "\n").replace(/\n$/, "").split("\n");
 }
 

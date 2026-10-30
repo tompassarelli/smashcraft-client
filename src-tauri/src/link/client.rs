@@ -121,6 +121,7 @@ impl Shared {
         *self.greeting.lock().unwrap() = messages;
     }
 
+    #[cfg(test)]
     pub fn stop(&self) {
         self.stop.store(true, Ordering::SeqCst);
         if let Some(stream) = self.writer.lock().unwrap().take() {
@@ -129,7 +130,7 @@ impl Shared {
     }
 }
 
-/// Runs the link until [`Shared::stop`]: connect, follow status, reconnect,
+/// Runs the link until a test stops it: connect, follow status, reconnect,
 /// and start the service when it is wanted and nothing answers.
 pub fn run(shared: Arc<Shared>, port: u16, sink: Arc<dyn Sink>, starter: Arc<dyn Starter>) {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));

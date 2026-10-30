@@ -1,19 +1,19 @@
 // Mirrors padbridge:model (Rust, serde) and the client's commands.
 
-export type Light = "green" | "amber" | "red" | "off";
-export type Link = "off" | "starting" | "connected";
+type Light = "green" | "amber" | "red" | "off";
+type Link = "off" | "starting" | "connected";
 export type Profile = "map" | "any_map" | "off";
 export type PadPreset = "melee" | "z-jump" | "tom";
 export type TriggerShields = { left: "full" | "light"; right: "full" | "light" };
 export type RightStick = "smash" | "tilt";
 export type ControllerSettings = { pad_preset: PadPreset; tap_jump: boolean; triggers: TriggerShields; right_stick: RightStick };
-export type PadPresetBindings = { preset: PadPreset; label: string; bindings: Binding[] };
+type PadPresetBindings = { preset: PadPreset; label: string; bindings: Binding[] };
 export type ProfileChoice = "auto" | Profile;
 
-export type Row = { label: string; text: string; light: Light };
-export type View = { rows: [Row, Row, Row]; overall: Light; problem: string | null };
+type Row = { label: string; text: string; light: Light };
+type View = { rows: [Row, Row, Row]; overall: Light; problem: string | null };
 
-export type Snapshot = {
+type Snapshot = {
   settings: ControllerSettings;
   pad: { name: string; id: string } | null;
   game: { pid: number; window: boolean } | null;
@@ -30,7 +30,7 @@ export type ControllerState = { link: Link; wanted: boolean; view: View; snapsho
 /** SDL axes: -32768..32767, y negative when pushed up. Triggers 0..32767. */
 export type InputView = { left: [number, number]; right: [number, number]; lt: number; rt: number; buttons: number };
 
-export const BUTTONS = [
+const BUTTONS = [
   "a", "b", "x", "y", "lb", "rb", "start", "back", "left_stick", "right_stick",
   "dpad_up", "dpad_down", "dpad_left", "dpad_right",
 ] as const;

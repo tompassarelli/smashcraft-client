@@ -49,20 +49,20 @@ test("a standalone run's view reads the host's relay code and the region's round
     "Smashcraft: join code sgp-7K2M-QX9D-R3TB-4 (relay room; the joiner's map must match 4abc9ceb)",
     "Smashcraft: standalone window opened. Connect a controller or use the keyboard.",
   ];
-  const waiting = standaloneView({ available: true, running: true, mode: "host", lines: lines.slice(0, 2), finished: null });
+  const waiting = standaloneView({ available: true, map: null, running: true, mode: "host", lines: lines.slice(0, 2), finished: null });
   expect(waiting.steps).toEqual([WAITING_FOR_OPPONENT]);
-  const host = standaloneView({ available: true, running: true, mode: "host", lines, finished: null });
+  const host = standaloneView({ available: true, map: null, running: true, mode: "host", lines, finished: null });
   expect(host.code).toBe("sgp-7K2M-QX9D-R3TB-4");
   expect(host.region).toEqual({ name: "sgp", rttMs: 183 });
   expect(host.steps).toEqual(["standalone window opened. Connect a controller or use the keyboard."]);
-  expect(standaloneView({ available: true, running: false, mode: "join", lines: [], finished: false }).steps).toEqual([DID_NOT_START]);
+  expect(standaloneView({ available: true, map: null, running: false, mode: "join", lines: [], finished: false }).steps).toEqual([DID_NOT_START]);
   expect(host.canStartNow).toBe(false);
   expect(host.busy).toBe(true);
-  const joiner = standaloneView({ available: true, running: true, mode: "join", lines: ["net: joining through sgp, round trip to it 40 ms", lines[2]!], finished: false });
+  const joiner = standaloneView({ available: true, map: null, running: true, mode: "join", lines: ["net: joining through sgp, round trip to it 40 ms", lines[2]!], finished: false });
   expect(joiner.code).toBeUndefined();
   expect(joiner.region).toEqual({ name: "sgp", rttMs: 40 });
   expect(joiner.failed).toBe(true);
-  expect(standaloneView({ available: true, running: true, mode: "join", lines: lines.slice(0, 2), finished: null }).code).toBeUndefined();
+  expect(standaloneView({ available: true, map: null, running: true, mode: "join", lines: lines.slice(0, 2), finished: null }).code).toBeUndefined();
 });
 
 test("a typed relay code is sent when it names a region and thirteen letters or digits, or a relay's address and port with them (external reference: wisp:host/net/joinCode.ts relayCode)", () => {
