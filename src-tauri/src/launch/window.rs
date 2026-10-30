@@ -3,6 +3,7 @@
 const TITLE: &str = "Warcraft III";
 
 /// The id of the window titled `title` in `niri msg --json windows`, which is a list or an object keyed by id.
+#[cfg(unix)]
 pub fn niri_window_id(windows: &str, title: &str) -> Option<u64> {
     let all: serde_json::Value = serde_json::from_str(windows).ok()?;
     let mut list: Vec<&serde_json::Value> = match &all {
@@ -36,7 +37,7 @@ pub fn raise_warcraft() -> Result<(), String> {
     if status.success() { Ok(()) } else { Err("there is no Warcraft III window".to_owned()) }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 

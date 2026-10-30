@@ -319,6 +319,7 @@ mod tests {
         (Arc::new(move |state| drop(tx.lock().unwrap().send(state))), rx)
     }
 
+    #[cfg(unix)]
     fn wait_finished(rx: &mpsc::Receiver<PlayState>) -> PlayState {
         loop {
             let state = rx.recv_timeout(Duration::from_secs(10)).expect("the run finishes");

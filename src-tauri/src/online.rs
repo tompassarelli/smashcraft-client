@@ -213,9 +213,10 @@ impl Online {
 
     /// Stops the current run and what it started, such as the standalone window; a hosted game stays open in Warcraft III until the player leaves it.
     pub fn cancel(self: &Arc<Self>) {
-        let Some(pid) = self.child.lock().unwrap().as_ref().map(Child::id) else { return };
         #[cfg(unix)]
-        if signal_group(pid, libc::SIGTERM) {
+        if let Some(pid) = self.child.lock().unwrap().as_ref().map(Child::id)
+            && signal_group(pid, libc::SIGTERM)
+        {
             let run = self.clone();
             std::thread::spawn(move || {
                 std::thread::sleep(CANCEL_GRACE);
@@ -258,6 +259,7 @@ mod tests {
         assert!(!shows_relay_round_trip("net: {\"turns\":3}"));
     }
 
+    #[cfg(unix)]
     fn wait_finished(rx: &mpsc::Receiver<OnlineState>) -> OnlineState {
         loop {
             let state = rx.recv_timeout(Duration::from_secs(10)).expect("the run finishes");

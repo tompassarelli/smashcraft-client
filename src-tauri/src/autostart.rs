@@ -2,14 +2,17 @@
 //! name the installed launcher (`SMASHCRAFT_LAUNCHER`), which survives updates;
 //! Windows and macOS use the autostart plugin.
 
+#[cfg(target_os = "linux")]
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;
 
 /// What login should start: the launcher when one started us, else this executable.
+#[cfg(target_os = "linux")]
 pub fn launcher() -> PathBuf {
     std::env::var_os("SMASHCRAFT_LAUNCHER").map(PathBuf::from).or_else(|| std::env::current_exe().ok()).unwrap_or_else(|| "smashcraft".into())
 }
 
+#[cfg(target_os = "linux")]
 pub fn desktop_entry(exec: &Path) -> String {
     format!(
         "[Desktop Entry]\nType=Application\nName=Smashcraft\nComment=Controller support for Warcraft III, waiting in the tray\nExec=\"{}\" --hidden\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
@@ -54,7 +57,7 @@ pub fn set(app: &AppHandle, on: bool) -> Result<bool, String> {
     launcher.is_enabled().map_err(|e| e.to_string())
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
 
