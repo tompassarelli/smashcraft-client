@@ -6,7 +6,7 @@ import {
   type ReplayEntry, type ReplayScene, type Simulation, type Simulations, type WarcraftGame, type Watch, joinedReplay, keptName, openForWatching, replayEntries, versionName,
   warcraftGameOf, warcraftName,
 } from "../replays";
-import { api } from "../tauri";
+import { api } from "../api";
 
 const OWN_SIMULATION = "./sim.js";
 

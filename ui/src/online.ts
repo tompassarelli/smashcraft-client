@@ -1,7 +1,7 @@
 // What the Online page shows for a run of `bun wisp online` (#142) or of Wisp's
 // standalone window (#25): the Rust side keeps the command's lines; this reads
 // the join code, the relay region and the current step from them.
-import type { OnlineState } from "./model";
+import type { OnlineState } from "./controller";
 
 export type OnlineView = {
   /** The host's join code, once Warcraft III has created the game. */

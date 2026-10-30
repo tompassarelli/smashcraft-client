@@ -1,5 +1,5 @@
 import { h } from "../dom";
-import type { OnlineState } from "../model";
+import type { OnlineState } from "../controller";
 import { looksLikeCode, looksLikeRelayCode, type Network, networkView, type OnlineView, onlineView, SMASHCRAFT_SERVERS_OPT_IN, type StandaloneView, standaloneView } from "../online";
 import { onlineApi } from "../tauri-online";
 

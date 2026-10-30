@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { OnlineMode } from "./model";
+import type { OnlineMode } from "./controller";
 import { DID_NOT_START, looksLikeCode, looksLikeRelayCode, type Network, networkView, onlineView, SMASHCRAFT_SERVERS_OPT_IN, standaloneView, WAITING_FOR_OPPONENT } from "./online";
 
 /** mulberry32: the same cases on every run. */

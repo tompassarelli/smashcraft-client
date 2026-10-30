@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use tauri::{App, Manager, Window, WindowEvent};
 
-use crate::link::{self, Shared};
+use crate::link::{self, ControllerLink};
 use crate::settings::Store;
 use crate::sims::SimStore;
 use crate::sink::{TauriSink, add_tray, show_input};
@@ -23,8 +23,8 @@ pub fn setup(app: &mut App, instance: TcpListener, hidden: bool) -> Result<(), B
     let mapsims = mapsim::MapSims::new(sims);
     let warcraft = warcraft_replays::Library::new(&app.path().app_data_dir()?);
     let settings = store.load();
-    let shared = Shared::new(settings.controller_on);
-    shared.greet(settings.greeting());
+    let shared = ControllerLink::new(settings.controller_on);
+    shared.set_reconnect_messages(settings.reconnect_messages());
 
     let initial = shared.state().view.overall;
     add_tray(app, initial)?;

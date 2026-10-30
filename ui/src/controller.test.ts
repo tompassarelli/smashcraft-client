@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { KEYS, pressed, pressFromValue, pressLabel, pressOptions, pressValue, stickDot, type InputView, type Press } from "./model";
+import { KEYS, pressed, pressFromValue, pressLabel, pressOptions, pressValue, stickDot, type InputView, type Press } from "./controller";
 import { resolve, type Route } from "./router";
 
 /** mulberry32: the same cases on every run. */

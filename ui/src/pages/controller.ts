@@ -2,8 +2,8 @@ import { h, svg } from "../dom";
 import {
   PROFILE_CHOICES, PROFILE_LABEL, controlLabel, pressed, stickDot,
   type Binding, type Bindings, type Button, type Control, type ControllerState, type ControllerSettings, type InputView, type ProfileChoice, type RightStick,
-} from "../model";
-import { api } from "../tauri";
+} from "../controller";
+import { api } from "../api";
 import { statusCard } from "./status";
 
 const NEUTRAL: InputView = { left: [0, 0], right: [0, 0], lt: 0, rt: 0, buttons: 0 };

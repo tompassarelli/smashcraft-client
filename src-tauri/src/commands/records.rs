@@ -10,7 +10,7 @@ pub fn record_folders(state: State<AppState>) -> Vec<String> {
 
 #[tauri::command]
 pub fn set_record_folders(state: State<AppState>, folders: Vec<String>) -> Result<Vec<String>, String> {
-    state.update(|s| s.record_folders = Some(folders))?;
+    state.update(|s| s.custom_map_data_folders = Some(folders))?;
     Ok(state.folders())
 }
 

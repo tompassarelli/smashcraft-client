@@ -2,12 +2,12 @@ use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Manager};
 
-use crate::link::Shared;
+use crate::link::ControllerLink;
 use crate::settings::{Settings, Store};
 use crate::{mapsim, online, play, records, replays, warcraft_replays};
 
 pub struct AppState {
-    pub link: Arc<Shared>,
+    pub link: Arc<ControllerLink>,
     pub store: Store,
     pub settings: Mutex<Settings>,
     pub history: records::History,
@@ -25,7 +25,7 @@ impl AppState {
     /// The record folders the player chose, or the ones found on this computer.
     pub fn folders(&self) -> Vec<String> {
         let settings = self.settings.lock().unwrap();
-        settings.record_folders.clone().unwrap_or_else(records::default_folders)
+        settings.custom_map_data_folders.clone().unwrap_or_else(records::default_folders)
     }
 
     pub fn update(&self, change: impl FnOnce(&mut Settings)) -> Result<(), String> {

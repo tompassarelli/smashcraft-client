@@ -1,6 +1,6 @@
 // The Online page's commands and events: Wisp's standalone window through its relay, Battle.net through wisp online, and Smashcraft Servers.
-import type { OnlineState } from "./model";
-import { invoke, tauri } from "./tauri";
+import type { OnlineState } from "./controller";
+import { invoke, tauri } from "./api";
 
 export const onlineApi = {
   onlineState: () => invoke<OnlineState>("online_state"),

@@ -1,6 +1,6 @@
 import { h } from "../dom";
-import type { ControllerState } from "../model";
-import { api } from "../tauri";
+import type { ControllerState } from "../controller";
+import { api } from "../api";
 
 const KEYBOARD_NOTE = "Keyboard play needs no controller. Set your keys in Warcraft III's own Controls screen (WASD, Box or Custom).";
 

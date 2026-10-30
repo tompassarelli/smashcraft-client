@@ -1,5 +1,5 @@
 import { asStore, ingest, type IngestResult } from "./records";
-import { api } from "./tauri";
+import { api } from "./api";
 
 /** Reads every record folder into the stored history and keeps the new matches. */
 export async function refreshHistory(): Promise<IngestResult> {

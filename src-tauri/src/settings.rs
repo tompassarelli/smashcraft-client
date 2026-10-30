@@ -12,7 +12,8 @@ pub struct Settings {
     pub controller_on: bool,
     pub profile: ProfileChoice,
     /// The CustomMapData folders match records are read from; the ones found on this computer until the player sets them.
-    pub record_folders: Option<Vec<String>>,
+    #[serde(alias = "record_folders")]
+    pub custom_map_data_folders: Option<Vec<String>>,
     /// Whether the player agreed to add Smashcraft's page to Warcraft III's menus (online play); none until asked.
     pub menu_page: Option<bool>,
     /// Whether the player opted in to Smashcraft Servers; none until they choose.
@@ -20,7 +21,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn greeting(&self) -> Vec<ClientMessage> {
+    pub fn reconnect_messages(&self) -> Vec<ClientMessage> {
         vec![ClientMessage::Profile(self.profile)]
     }
 }
@@ -50,6 +51,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_settings_file_from_before_the_rename_still_reads_its_folders() {
+        let old: Settings = serde_json::from_str(r#"{"controller_on":false,"record_folders":["/games/CustomMapData"]}"#).unwrap();
+        assert_eq!(old.custom_map_data_folders, Some(vec!["/games/CustomMapData".into()]));
+    }
+
+    #[test]
     fn settings_round_trip_and_default_when_missing() {
         let dir = std::env::temp_dir().join(format!("smashcraft-settings-{}", std::process::id()));
         let store = Store::new(&dir);
@@ -57,11 +64,11 @@ mod tests {
         let settings = Settings {
             controller_on: true,
             profile: ProfileChoice::AnyMap,
-            record_folders: Some(vec!["/games/CustomMapData".into()]),
+            custom_map_data_folders: Some(vec!["/games/CustomMapData".into()]),
             menu_page: Some(true),
             smashcraft_servers: Some(true),
         };
-        assert!(matches!(settings.greeting().as_slice(), [ClientMessage::Profile(ProfileChoice::AnyMap)]));
+        assert!(matches!(settings.reconnect_messages().as_slice(), [ClientMessage::Profile(ProfileChoice::AnyMap)]));
         store.save(&settings).unwrap();
         assert_eq!(store.load(), settings);
         std::fs::remove_dir_all(dir).unwrap();

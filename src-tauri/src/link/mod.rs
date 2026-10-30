@@ -6,7 +6,7 @@
 mod client;
 mod supervisor;
 
-pub use client::{BundledService, Shared, Sink, run, service_program};
+pub use client::{BundledService, ControllerLink, Sink, run, service_program};
 pub use supervisor::ControllerState;
 
 /// The service's local interface (padbridge:model).

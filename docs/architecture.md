@@ -6,7 +6,7 @@ Paths are repo-relative; the tables say where things are today, and "moves in Cn
 
 ## Modules and use direction
 
-A module may use only the modules in its "may use" column. The UI talks to Rust only through `ui/src/tauri.ts` and, for the Online page, `ui/src/tauri-online.ts`.
+A module may use only the modules in its "may use" column. The UI talks to Rust only through `ui/src/api.ts` and, for the Online page, `ui/src/tauri-online.ts`.
 
 | module | today | responsibility | may use |
 |---|---|---|---|
@@ -14,7 +14,7 @@ A module may use only the modules in its "may use" column. The UI talks to Rust 
 | game-files | `src-tauri/src/`: records, replays, warcraft_replays, mapsim, mpq, lua32; `src-tauri/src/game/map_facts.rs` | Read the map's records, replays and Lua through the kit; keep `LastReplay.w3g` copies | none |
 | launch | `src-tauri/src/`: play, online; `src-tauri/src/launch/`: relay, lan_switch | Start Warcraft, `bun wisp online`, `bun wisp play --standalone` and relay matches on Smashcraft Servers | game-files, servers |
 | app | `src-tauri/src/lib.rs` (setup); `commands/` (handlers by page and the command list); sink (tray light and menu); settings, tray, autostart, single | Tauri wiring and command handlers | link, game-files, launch |
-| ui-types | `ui/src/model.ts` (hand mirror) | Protocol and command types | none |
+| ui-types | `ui/src/controller.ts` (hand mirror) | Protocol and command types | none |
 | ui-core | `ui/src/`: tauri, tauri-online, dom, draw, playback, stats, history, online, play, records, replays, router | Invoke wrappers and pure helpers | ui-types |
 | ui-pages | `ui/src/pages/`, `ui/src/main.ts` | One page per tab | ui-core, ui-types |
 | scripts | `scripts/` | Kit fetch, install, cargo, icons | none |
@@ -26,9 +26,9 @@ A module may use only the modules in its "may use" column. The UI talks to Rust 
 
 | change | edit today | target |
 |---|---|---|
-| A key, binding or fighter action | not here: padbridge `model/src/lib.rs`; UI mirror `ui/src/model.ts` (`KEYS`, `Press`) | Smashcraft `keyBindings.ts` (K1/P1); `ui/src/generated/protocol.ts` from padbridge's Rust types in C1 |
-| A new pad preset | labels in `src-tauri/src/lib.rs` (`pad_presets`), `ui/src/model.ts` (`PadPreset`) | read from the snapshot's layout list in C1 |
-| Service TCP protocol types | crate `padbridge-model` v0.4.0 (`src-tauri/Cargo.toml`), `ui/src/model.ts` | padbridge `protocol` crate by tag + generated `ui/src/generated/protocol.ts` in C1 |
+| A key, binding or fighter action | not here: padbridge `model/src/lib.rs`; UI mirror `ui/src/controller.ts` (`KEYS`, `Press`) | Smashcraft `keyBindings.ts` (K1/P1); `ui/src/generated/protocol.ts` from padbridge's Rust types in C1 |
+| A new pad preset | labels in `src-tauri/src/lib.rs` (`pad_presets`), `ui/src/controller.ts` (`PadPreset`) | read from the snapshot's layout list in C1 |
+| Service TCP protocol types | crate `padbridge-model` v0.4.0 (`src-tauri/Cargo.toml`), `ui/src/controller.ts` | padbridge `protocol` crate by tag + generated `ui/src/generated/protocol.ts` in C1 |
 | Service supervision and TCP client | `src-tauri/src/link/{supervisor,client}.rs` (`WC3_CONTROLLER_*`, `padbridge` binary) | `PADBRIDGE_*`, `padbridge` in C1 |
 | Plug-in protocol | not here: padbridge `src/service/plugin.rs`; the client only passes `--plugin` (`plugin_program` in `src-tauri/src/link/client.rs`) | padbridge `protocol/src/plugin.rs` in P1 |
 | Controller page | `ui/src/pages/controller.ts` (face layout hardcoded), commands in `src-tauri/src/lib.rs` | face layout from the snapshot in C1; `src-tauri/src/commands/controller.rs` in C3 |
@@ -58,10 +58,10 @@ Tests sit beside their code: `ui/src/*.test.ts`, `scripts/*.test.ts`, Rust `#[cf
 ## Target and slices
 
 - `src-tauri/src/`: `app.rs`, `commands/{controller,records,replays,sims,play,online}.rs`, `link/`, `game/`, `launch/`, `instance_lock.rs`.
-- `ui/src/generated/` holds produced types only (from `scripts/generate.ts`); `ui/src/model.ts` disappears.
+- `ui/src/generated/` holds produced types only (from `scripts/generate.ts`); `ui/src/controller.ts` disappears.
 - Each slice moves files and every caller in one change, with no re-export shims.
 
-1. C1 (after padbridge P1): pin padbridge `protocol` by tag; `WC3_CONTROLLER_*` -> `PADBRIDGE_*`; generated protocol.ts replaces model.ts; presets and face layout from the snapshot.
+1. C1 (after padbridge P1): pin padbridge `protocol` by tag; `WC3_CONTROLLER_*` -> `PADBRIDGE_*`; generated protocol.ts replaces controller.ts; presets and face layout from the snapshot.
 2. C2 (with smashcraft `clientKit.ts`): kit 2; `mapsim.rs` reads `viewerEntry`/`versionModule`; `ui/src/records.ts` replaced by kit `records.js`.
 3. C3: `lib.rs` split into `app.rs` + `commands/`; `link.rs` split; the renames above.
 

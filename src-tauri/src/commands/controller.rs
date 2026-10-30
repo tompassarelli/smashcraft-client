@@ -14,14 +14,14 @@ pub fn controller_state(state: State<AppState>) -> ControllerState {
 #[tauri::command]
 pub fn turn_on_controller(state: State<AppState>) -> Result<ControllerState, String> {
     state.update(|s| s.controller_on = true)?;
-    state.link.sup.lock().unwrap().turn_on();
+    state.link.supervisor.lock().unwrap().turn_on();
     Ok(state.link.state())
 }
 
 #[tauri::command]
 pub fn set_profile(state: State<AppState>, choice: ProfileChoice) -> Result<bool, String> {
     state.update(|s| s.profile = choice)?;
-    state.link.greet(state.settings.lock().unwrap().greeting());
+    state.link.set_reconnect_messages(state.settings.lock().unwrap().reconnect_messages());
     Ok(state.link.send(&ClientMessage::Profile(choice)))
 }
 

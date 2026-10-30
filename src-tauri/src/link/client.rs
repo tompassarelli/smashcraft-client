@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use padbridge_model::{ClientMessage, InputView, ServiceMessage, Snapshot};
 
-use super::supervisor::{Action, ControllerState, Supervise};
+use super::supervisor::{Action, ControllerState, Supervisor};
 
 /// Where status goes: the window and tray in the app, a recorder in tests.
 pub trait Sink: Send + Sync + 'static {
@@ -68,23 +68,23 @@ impl Starter for BundledService {
     }
 }
 
-/// Shared between the link thread and the app's commands.
-pub struct Shared {
-    pub sup: Mutex<Supervise>,
+/// ControllerLink between the link thread and the app's commands.
+pub struct ControllerLink {
+    pub supervisor: Mutex<Supervisor>,
     pub snapshot: Mutex<Snapshot>,
     writer: Mutex<Option<TcpStream>>,
     /// Sent on every new connection, so a restarted service gets the player's choices.
-    greeting: Mutex<Vec<ClientMessage>>,
+    reconnect_messages: Mutex<Vec<ClientMessage>>,
     stop: AtomicBool,
 }
 
-impl Shared {
+impl ControllerLink {
     pub fn new(wanted: bool) -> Arc<Self> {
         Arc::new(Self {
-            sup: Mutex::new(Supervise::new(wanted)),
+            supervisor: Mutex::new(Supervisor::new(wanted)),
             snapshot: Mutex::new(Snapshot::default()),
             writer: Mutex::new(None),
-            greeting: Mutex::new(Vec::new()),
+            reconnect_messages: Mutex::new(Vec::new()),
             stop: AtomicBool::new(false),
         })
     }
@@ -96,7 +96,7 @@ impl Shared {
     }
 
     pub fn state(&self) -> ControllerState {
-        ControllerState::new(&self.sup.lock().unwrap(), &self.snapshot.lock().unwrap())
+        ControllerState::new(&self.supervisor.lock().unwrap(), &self.snapshot.lock().unwrap())
     }
 
     /// Sends a message to the service; false when none is connected.
@@ -108,8 +108,8 @@ impl Shared {
         }
     }
 
-    pub fn greet(&self, messages: Vec<ClientMessage>) {
-        *self.greeting.lock().unwrap() = messages;
+    pub fn set_reconnect_messages(&self, messages: Vec<ClientMessage>) {
+        *self.reconnect_messages.lock().unwrap() = messages;
     }
 
     #[cfg(test)]
@@ -123,19 +123,19 @@ impl Shared {
 
 /// Runs the link until a test stops it: connect, follow status, reconnect,
 /// and start the service when it is wanted and nothing answers.
-pub fn run(shared: Arc<Shared>, port: u16, sink: Arc<dyn Sink>, starter: Arc<dyn Starter>) {
+pub fn run(shared: Arc<ControllerLink>, port: u16, sink: Arc<dyn Sink>, starter: Arc<dyn Starter>) {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    let publish = |shared: &Shared| sink.status(&shared.state());
+    let publish = |shared: &ControllerLink| sink.status(&shared.state());
     let mut last_link = None;
     while !shared.stop.load(Ordering::SeqCst) {
         match TcpStream::connect_timeout(&addr, Duration::from_millis(300)) {
             Ok(stream) => {
                 let _ = stream.set_nodelay(true);
                 *shared.writer.lock().unwrap() = stream.try_clone().ok();
-                for message in shared.greeting.lock().unwrap().clone() {
+                for message in shared.reconnect_messages.lock().unwrap().clone() {
                     shared.send(&message);
                 }
-                shared.sup.lock().unwrap().connected();
+                shared.supervisor.lock().unwrap().connected();
                 publish(&shared);
                 for line in BufReader::new(stream).lines() {
                     let Ok(line) = line else { break };
@@ -153,9 +153,9 @@ pub fn run(shared: Arc<Shared>, port: u16, sink: Arc<dyn Sink>, starter: Arc<dyn
                 last_link = None;
             }
             Err(_) => {
-                let action = shared.sup.lock().unwrap().unreachable(Instant::now());
+                let action = shared.supervisor.lock().unwrap().unreachable(Instant::now());
                 if action == Action::Start && starter.start().is_err() {
-                    shared.sup.lock().unwrap().start_failed();
+                    shared.supervisor.lock().unwrap().start_failed();
                 }
                 let state = shared.state();
                 if last_link != Some((state.link, state.view.problem.is_some(), state.wanted)) {
@@ -216,7 +216,7 @@ mod tests {
         let (status_tx, status_rx) = mpsc::channel();
         let (input_tx, input_rx) = mpsc::channel();
         let (started_tx, started_rx) = mpsc::channel();
-        let shared = Shared::new(false);
+        let shared = ControllerLink::new(false);
         let sink = Arc::new(Recorder(Mutex::new(status_tx), Mutex::new(input_tx)));
         let starter = Arc::new(FakeService { port, started: started_tx });
         let link = std::thread::spawn({
@@ -228,7 +228,7 @@ mod tests {
         assert_eq!(off.view.rows[0].text, "Controller support is off");
         assert!(started_rx.try_recv().is_err(), "not started before the player asks");
 
-        shared.sup.lock().unwrap().turn_on();
+        shared.supervisor.lock().unwrap().turn_on();
         let listener = started_rx.recv_timeout(Duration::from_secs(10)).expect("service started");
         let (mut conn, _) = listener.accept().unwrap();
         until(&status_rx, |s| s.link == Link::Connected);
@@ -277,7 +277,7 @@ mod tests {
         let (status_tx, status_rx) = mpsc::channel();
         let (input_tx, _input_rx) = mpsc::channel();
         let (started_tx, started_rx) = mpsc::channel();
-        let shared = Shared::new(true);
+        let shared = ControllerLink::new(true);
         let sink = Arc::new(Recorder(Mutex::new(status_tx), Mutex::new(input_tx)));
         let starter = Arc::new(FakeService { port, started: started_tx });
         let link = std::thread::spawn({

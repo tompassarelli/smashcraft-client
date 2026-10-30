@@ -1,5 +1,5 @@
 // The Rust side's commands and events (app.withGlobalTauri exposes window.__TAURI__).
-import type { Bindings, ControllerState, InputView, PlayState, PadPreset, ProfileChoice, RightStick, TriggerShields } from "./model";
+import type { Bindings, ControllerState, InputView, PlayState, PadPreset, ProfileChoice, RightStick, TriggerShields } from "./controller";
 import type { HistoryStore, RecordFile } from "./records";
 import type { ReplayFile, WarcraftGame } from "./replays";
 

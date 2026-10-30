@@ -6,7 +6,7 @@ Follow README's "Principles": if a task seems to need memory reads, disassembly,
 
 Where code lives and where it is moving: docs/architecture.md. Place a change by its row there.
 
-- Take the UI's types for padbridge messages from TypeScript generated from padbridge's Rust types (ts-rs, approved by Tom); never hand-copy them (`ui/src/model.ts` is the last copy, removed in C1).
+- Take the UI's types for padbridge messages from TypeScript generated from padbridge's Rust types (ts-rs, approved by Tom); never hand-copy them (`ui/src/controller.ts` is the last copy, removed in C1).
 - Read preset names, preset labels and the pad's face layout from padbridge's snapshot; never hardcode them.
 - Read Smashcraft's file names, module names and record format from the client kit; never restate them in client code.
 - Pin padbridge and Smashcraft by release tag or a main SHA that is never rewritten.

@@ -1,7 +1,7 @@
 import { h } from "./dom";
-import type { PlayState } from "./model";
+import type { PlayState } from "./controller";
 import { stepsAfterError } from "./play-steps";
-import { api } from "./tauri";
+import { api } from "./api";
 
 /** The header's Play button and the steps of the current run beneath it. */
 export function playButton(): HTMLElement {

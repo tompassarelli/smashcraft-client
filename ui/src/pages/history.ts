@@ -1,7 +1,7 @@
 import { h } from "../dom";
 import { refreshHistory } from "../history";
 import { type FighterRecord, type IngestResult, type MatchRecord, duration } from "../records";
-import { api } from "../tauri";
+import { api } from "../api";
 
 const MODE: Record<string, string> = { versus: "Versus", practice: "Practice", training: "Training", endless: "Endless" };
 
