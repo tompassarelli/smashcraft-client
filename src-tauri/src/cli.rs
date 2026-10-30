@@ -14,9 +14,6 @@ pub fn check() {
     println!("maps folders: {maps:?}");
     match play::current_map(&maps) {
         None => println!("play: no Smashcraft map in Maps/00-Smashcraft"),
-        Some(map) => match play::launch_for(&map, std::env::var_os("WARCRAFT_III"), cfg!(windows)) {
-            None => println!("play: {} (Warcraft III not found)", map.display()),
-            Some(launch) => println!("play: {:?} {:?} prefix {:?}", launch.program, launch.args, launch.prefix),
-        },
+        Some(map) => println!("play: {} by {:?}", map.display(), play::route_for(&map, &play::Setup::from_env(false))),
     }
 }

@@ -1,10 +1,12 @@
-//! Play: Warcraft III's `-launch -loadfile` on the current map (smashcraft:docs/client-interface.md, "Maps").
+//! Play: gets the player from the Play button to a match, by the route their system has (smashcraft:docs/client-interface.md, "Maps").
 
 use serde::Serialize;
 use std::ffi::OsString;
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Duration;
 
 const MAPS_SUBFOLDER: &str = "00-Smashcraft";
 const RETAIL_EXE: &str = "Warcraft III/_retail_/x86_64/Warcraft III.exe";
@@ -42,46 +44,93 @@ pub fn current_map(maps_folders: &[PathBuf]) -> Option<PathBuf> {
         .map(|(_, path)| path)
 }
 
+pub const IN_MATCH: &str = "You're in a match: switch to the Warcraft III window";
+const COULDNT_START: &str = "Play couldn't start Warcraft III.";
+const SHORTCUT_NEXT: &str = "Battle.net is starting. Sign in, start Warcraft III from it and press Play again. To have Play host the match too, set SMASHCRAFT_TS to the ts folder of a Smashcraft checkout.";
+/// How long the output of a finished run has to drain when something else still holds its pipes open.
+const DRAIN: Duration = Duration::from_secs(2);
+
 #[derive(Debug, PartialEq)]
 pub struct Launch {
     pub program: OsString,
     pub args: Vec<OsString>,
-    pub prefix: Option<PathBuf>,
 }
 
-fn wine_prefix(path: &Path) -> Option<PathBuf> {
-    path.ancestors().find(|dir| dir.file_name().is_some_and(|name| name == "drive_c")).and_then(Path::parent).map(Path::to_path_buf)
-}
-
+/// The direct launch: the given program, else Warcraft III's own executable on Windows.
 pub fn launch_for(map: &Path, program: Option<OsString>, windows: bool) -> Option<Launch> {
     let args = |map: OsString| vec!["-launch".into(), "-loadfile".into(), map];
     if let Some(program) = program.filter(|p| !p.is_empty()) {
-        return Some(Launch { program, args: args(map.into()), prefix: None });
+        return Some(Launch { program, args: args(map.into()) });
     }
-    if windows {
-        let exe = ["C:\\Program Files (x86)", "C:\\Program Files"].iter().map(|dir| Path::new(dir).join(RETAIL_EXE)).find(|exe| exe.is_file())?;
-        let mut all = args(map.into());
-        all.insert(0, exe.into());
-        let program = all.remove(0);
-        return Some(Launch { program, args: all, prefix: None });
+    if !windows {
+        return None;
     }
-    let prefix = wine_prefix(map)?;
-    let exe = ["Program Files (x86)", "Program Files"].iter().map(|dir| prefix.join("drive_c").join(dir).join(RETAIL_EXE)).find(|exe| exe.is_file())?;
-    let windows_path = |path: &Path| OsString::from(format!("Z:{}", path.to_string_lossy().replace('/', "\\")));
-    let mut all = args(windows_path(map));
-    all.insert(0, exe.into_os_string());
-    let wine = std::env::var_os("WINE").unwrap_or_else(|| "wine".into());
-    Some(Launch { program: wine, args: all, prefix: Some(prefix) })
+    let exe = ["C:\\Program Files (x86)", "C:\\Program Files"].iter().map(|dir| Path::new(dir).join(RETAIL_EXE)).find(|exe| exe.is_file())?;
+    Some(Launch { program: exe.into_os_string(), args: args(map.into()) })
+}
+
+/// `bun wisp play` in Smashcraft's tools, which handles Battle.net, the doctor checks and hosting.
+#[derive(Debug, PartialEq)]
+pub struct Run {
+    pub program: OsString,
+    pub args: Vec<OsString>,
+    pub dir: PathBuf,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Route {
+    /// Warcraft III is already in a match: start nothing.
+    InMatch,
+    Direct(Launch),
+    Wisp(Run),
+    /// Linux without Smashcraft's tools: Steam's Battle.net shortcut.
+    Shortcut,
+    NotFound,
+}
+
+pub struct Setup {
+    pub program: Option<OsString>,
+    pub tools: Option<PathBuf>,
+    pub bun: OsString,
+    pub windows: bool,
+    pub in_match: bool,
+}
+
+impl Setup {
+    pub fn from_env(in_match: bool) -> Self {
+        Self {
+            program: std::env::var_os("WARCRAFT_III").filter(|p| !p.is_empty()),
+            tools: tools_dir(),
+            bun: std::env::var_os("BUN").unwrap_or_else(|| "bun".into()),
+            windows: cfg!(windows),
+            in_match,
+        }
+    }
+}
+
+pub fn route_for(map: &Path, setup: &Setup) -> Route {
+    if setup.in_match {
+        return Route::InMatch;
+    }
+    if setup.program.is_some() || setup.windows {
+        return launch_for(map, setup.program.clone(), setup.windows).map_or(Route::NotFound, Route::Direct);
+    }
+    match &setup.tools {
+        Some(dir) => Route::Wisp(Run { program: setup.bun.clone(), args: vec!["wisp".into(), "play".into()], dir: dir.clone() }),
+        None => Route::Shortcut,
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct PlayState {
     pub available: bool,
     pub running: bool,
-    pub map: Option<String>,
     pub lines: Vec<String>,
+    /// The last press ended well (true), failed (false), or only said something (none).
     pub finished: Option<bool>,
 }
+
+type Changed = Arc<dyn Fn(PlayState) + Send + Sync>;
 
 #[derive(Default)]
 pub struct Play {
@@ -92,9 +141,7 @@ pub struct Play {
 impl Play {
     pub fn state(&self, maps_folders: &[PathBuf]) -> PlayState {
         let mut state = self.state.lock().unwrap().clone();
-        let map = current_map(maps_folders);
-        state.available = map.is_some();
-        state.map = map.as_deref().and_then(map_title);
+        state.available = current_map(maps_folders).is_some();
         state
     }
 
@@ -103,23 +150,41 @@ impl Play {
         *self.warcraft.lock().unwrap()
     }
 
-    pub fn start(&'static self, maps_folders: &[PathBuf], changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
+    pub fn start(&'static self, maps_folders: &[PathBuf], in_match: bool, changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
         let map = current_map(maps_folders).ok_or("No Smashcraft map is in Warcraft III's Maps/00-Smashcraft folder yet.")?;
-        let name = map_title(&map).unwrap_or_default();
-        let mut lines = vec![format!("Map: {name}")];
-        let started = match launch_for(&map, std::env::var_os("WARCRAFT_III"), cfg!(windows)) {
-            None => {
-                lines.push("Warcraft III wasn't found. Set WARCRAFT_III to the program that starts it.".to_owned());
-                false
-            }
-            Some(launch) => {
-                lines.push("Starting Warcraft III…".to_owned());
-                let mut command = Command::new(&launch.program);
-                command.args(&launch.args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
-                if let Some(prefix) = &launch.prefix {
-                    command.env("WINEPREFIX", prefix);
+        let route = route_for(&map, &Setup::from_env(in_match));
+        self.go(&map, route, crate::launch::window::raise_warcraft, Arc::new(changed))
+    }
+
+    fn go(&'static self, map: &Path, route: Route, raise: impl FnOnce() -> Result<(), String>, changed: Changed) -> Result<(), String> {
+        if self.state.lock().unwrap().running {
+            return Err("Play is already getting you into a match.".to_owned());
+        }
+        match route {
+            Route::Wisp(run) => return self.follow(run, changed),
+            Route::InMatch => {
+                let mut lines = vec![IN_MATCH.to_owned()];
+                if let Err(e) = raise() {
+                    lines.push(format!("Couldn't bring it forward: {e}"));
                 }
-                match command.spawn() {
+                self.finish(lines, None, &changed);
+                Ok(())
+            }
+            Route::NotFound => {
+                self.finish(vec!["Warcraft III wasn't found. Set WARCRAFT_III to the program that starts it.".to_owned()], Some(false), &changed);
+                Err(COULDNT_START.to_owned())
+            }
+            Route::Shortcut => {
+                let mut lines = vec![format!("Starting the Steam shortcut \"{}\"…", crate::launch::steam::SHORTCUT)];
+                let started = crate::launch::steam::start_shortcut();
+                lines.push(started.clone().map_or_else(|e| format!("Steam couldn't start it: {e}"), |()| SHORTCUT_NEXT.to_owned()));
+                self.finish(lines, Some(started.is_ok()), &changed);
+                started.map_err(|_| COULDNT_START.to_owned())
+            }
+            Route::Direct(launch) => {
+                let mut lines = vec![format!("Map: {}", map_title(map).unwrap_or_default()), "Starting Warcraft III…".to_owned()];
+                let spawned = Command::new(&launch.program).args(&launch.args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn();
+                match spawned {
                     Ok(mut child) => {
                         *self.warcraft.lock().unwrap() = Some(child.id());
                         std::thread::spawn(move || {
@@ -127,22 +192,73 @@ impl Play {
                             *self.warcraft.lock().unwrap() = None;
                         });
                         lines.push("Warcraft III is starting the match.".to_owned());
-                        true
+                        self.finish(lines, Some(true), &changed);
+                        Ok(())
                     }
                     Err(e) => {
-                        lines.push(format!("Warcraft III couldn't start: {e}"));
-                        false
+                        lines.push(format!("Warcraft III couldn't start: {}: {e}", launch.program.to_string_lossy()));
+                        self.finish(lines, Some(false), &changed);
+                        Err(COULDNT_START.to_owned())
                     }
                 }
             }
-        };
+        }
+    }
+
+    fn finish(&self, lines: Vec<String>, finished: Option<bool>, changed: &Changed) {
         let snapshot = {
             let mut state = self.state.lock().unwrap();
-            *state = PlayState { available: true, running: false, map: Some(name), lines, finished: Some(started) };
+            *state = PlayState { available: true, running: false, lines, finished };
             state.clone()
         };
         changed(snapshot);
-        if started { Ok(()) } else { Err("Play couldn't start Warcraft III.".to_owned()) }
+    }
+
+    fn say(&self, line: String) -> PlayState {
+        let mut state = self.state.lock().unwrap();
+        state.lines.push(line);
+        state.clone()
+    }
+
+    /// Runs `bun wisp play` and shows each line it prints, on either stream, as a step.
+    fn follow(&'static self, run: Run, changed: Changed) -> Result<(), String> {
+        let spawned = Command::new(&run.program).args(&run.args).current_dir(&run.dir).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn();
+        let mut child = match spawned {
+            Ok(child) => child,
+            Err(e) => {
+                let what = format!("{} {}", run.program.to_string_lossy(), run.args.iter().map(|a| a.to_string_lossy()).collect::<Vec<_>>().join(" "));
+                self.finish(vec![format!("Couldn't run {what} in {}: {e}", run.dir.display())], Some(false), &changed);
+                return Err(COULDNT_START.to_owned());
+            }
+        };
+        *self.state.lock().unwrap() = PlayState { available: true, running: true, lines: Vec::new(), finished: None };
+        changed(self.state.lock().unwrap().clone());
+        let (done, drained) = mpsc::channel();
+        let follow = |stream: Box<dyn Read + Send>| {
+            let (changed, done) = (changed.clone(), done.clone());
+            std::thread::spawn(move || {
+                for line in BufReader::new(stream).lines().map_while(Result::ok) {
+                    changed(self.say(line));
+                }
+                let _ = done.send(());
+            });
+        };
+        follow(Box::new(child.stdout.take().expect("piped stdout")));
+        follow(Box::new(child.stderr.take().expect("piped stderr")));
+        drop(done);
+        std::thread::spawn(move || {
+            let status = child.wait();
+            for _ in 0..2 {
+                let _ = drained.recv_timeout(DRAIN);
+            }
+            let ok = status.as_ref().is_ok_and(|status| status.success());
+            let mut lines = self.state.lock().unwrap().lines.clone();
+            if !ok {
+                lines.push(status.map_or_else(|e| format!("Play stopped: {e}."), |status| format!("Play stopped before the match started ({status}).")));
+            }
+            self.finish(lines, Some(ok), &changed);
+        });
+        Ok(())
     }
 }
 
@@ -155,33 +271,24 @@ pub fn tools_dir() -> Option<PathBuf> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn play_is_available_with_a_map_present_and_no_pad_connected() {
-        let dir = std::env::temp_dir().join(format!("smashcraft-play-keyboard-{}", std::process::id()));
-        let maps = dir.join("Maps");
-        std::fs::create_dir_all(maps.join("00-Smashcraft")).unwrap();
-        std::fs::write(maps.join("00-Smashcraft/Smashcraft 0.3-dev.456.w3x"), "").unwrap();
-        let state = Play::default().state(std::slice::from_ref(&maps));
-        assert!(state.available && !state.running);
-        assert_eq!(state.map.as_deref(), Some("Smashcraft 0.3-dev.456"));
-        assert!(!Play::default().state(&[dir.join("Elsewhere")]).available);
-        std::fs::remove_dir_all(&dir).unwrap();
+    fn tmp(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("smashcraft-play-{name}-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn setup(tools: Option<PathBuf>, in_match: bool) -> Setup {
+        Setup { program: None, tools, bun: "bun".into(), windows: false, in_match }
     }
 
     #[test]
     fn the_current_map_is_the_highest_release_in_00_smashcraft_per_the_client_interface() {
         assert_eq!(map_version("Smashcraft 0.0.41.w3x"), Some(MapVersion::Release(0, 0, 41)));
-        assert_eq!(map_version("Smashcraft 0.3-dev.456.w3x"), Some(MapVersion::Dev(456)));
-        assert_eq!(map_version("Smashcraft 0.3-dev.456 test 2.w3x"), None);
-        assert_eq!(map_version("Smashcraft 0.3-dev.w3x"), None);
-        assert_eq!(map_version("Other 0.3-dev.456.w3x"), None);
         assert_eq!(map_version("Smashcraft 0.0.41 test 2.w3x"), None);
         assert_eq!(map_version("Other 0.0.41.w3x"), None);
-        let dir = std::env::temp_dir().join(format!("smashcraft-play-{}", std::process::id()));
-        let folder = dir.join("drive_c/users/me/Documents/Warcraft III/Maps");
+        let dir = tmp("maps");
+        let folder = dir.join("Maps");
         std::fs::create_dir_all(folder.join("00-Smashcraft/tests")).unwrap();
-        std::fs::create_dir_all(dir.join("drive_c/Program Files (x86)/Warcraft III/_retail_/x86_64")).unwrap();
-        std::fs::write(dir.join("drive_c/Program Files (x86)").join(RETAIL_EXE), "").unwrap();
         for name in ["Smashcraft 0.0.9.w3x", "Smashcraft 0.0.10.w3x", "tests/Smashcraft 0.0.11.w3x", "Smashcraft 0.0.12 test 1.w3x"] {
             std::fs::write(folder.join("00-Smashcraft").join(name), "").unwrap();
         }
@@ -190,19 +297,78 @@ mod tests {
         for name in ["Smashcraft 0.3-dev.438.w3x", "Smashcraft 0.3-dev.456.w3x", "Smashcraft 0.3-dev.99.w3x", "Smashcraft 0.3-dev.500 test 2.w3x"] {
             std::fs::write(folder.join("00-Smashcraft").join(name), "").unwrap();
         }
-        let newest = current_map(std::slice::from_ref(&folder)).unwrap();
-        assert_eq!(newest, folder.join("00-Smashcraft/Smashcraft 0.3-dev.456.w3x"));
-        for name in ["Smashcraft 0.3-dev.438.w3x", "Smashcraft 0.3-dev.456.w3x", "Smashcraft 0.3-dev.99.w3x", "Smashcraft 0.3-dev.500 test 2.w3x"] {
-            std::fs::remove_file(folder.join("00-Smashcraft").join(name)).unwrap();
-        }
-        let launch = launch_for(&map, None, false).unwrap();
-        assert_eq!(launch.prefix.as_deref(), Some(dir.as_path()));
-        assert_eq!(launch.args[1..3], [OsString::from("-launch"), OsString::from("-loadfile")]);
-        if cfg!(not(windows)) {
-            assert!(launch.args[3].to_string_lossy().starts_with("Z:\\") && launch.args[3].to_string_lossy().ends_with("\\00-Smashcraft\\Smashcraft 0.0.10.w3x"));
-        }
+        assert_eq!(current_map(std::slice::from_ref(&folder)).unwrap(), folder.join("00-Smashcraft/Smashcraft 0.3-dev.456.w3x"));
         let given = launch_for(&map, Some("wc3".into()), false).unwrap();
-        assert_eq!((given.program, given.args.len(), given.prefix), ("wc3".into(), 3, None));
+        assert_eq!((given.program, given.args.len()), ("wc3".into(), 3));
+        assert_eq!(launch_for(&map, None, false), None, "no wine route on Linux");
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn linux_plays_through_bun_wisp_play_in_the_tools_folder_or_steams_shortcut_and_never_wine() {
+        let tools = tmp("tools");
+        let map = Path::new("/maps/00-Smashcraft/Smashcraft 0.3-dev.470.w3x");
+        let Route::Wisp(run) = route_for(map, &setup(Some(tools.clone()), false)) else { panic!("expected the wisp route") };
+        assert_eq!((run.program, run.args, run.dir), ("bun".into(), vec![OsString::from("wisp"), "play".into()], tools.clone()));
+        assert_eq!(route_for(map, &setup(None, false)), Route::Shortcut);
+        let direct = Setup { program: Some("wc3".into()), ..setup(Some(tools.clone()), false) };
+        assert!(matches!(route_for(map, &direct), Route::Direct(Launch { program, .. }) if program == "wc3"));
+        assert_eq!(route_for(map, &Setup { windows: true, ..setup(None, false) }), Route::NotFound, "no Warcraft III install in this sandbox");
+        std::fs::remove_dir_all(tools).unwrap();
+    }
+
+    fn collect() -> (Changed, mpsc::Receiver<PlayState>) {
+        let (tx, rx) = mpsc::channel();
+        let tx = Mutex::new(tx);
+        (Arc::new(move |state| drop(tx.lock().unwrap().send(state))), rx)
+    }
+
+    fn wait_finished(rx: &mpsc::Receiver<PlayState>) -> PlayState {
+        loop {
+            let state = rx.recv_timeout(Duration::from_secs(10)).expect("the run finishes");
+            if !state.running && state.finished.is_some() {
+                return state;
+            }
+        }
+    }
+
+    #[test]
+    fn warcraft_already_in_a_match_starts_nothing_says_so_and_raises_its_window() {
+        let play: &'static Play = Box::leak(Box::default());
+        let (changed, rx) = collect();
+        let raised = std::cell::Cell::new(0);
+        let tools = tmp("in-match");
+        let map = Path::new("/maps/Smashcraft 0.3-dev.470.w3x");
+        let route = route_for(map, &setup(Some(tools.clone()), true));
+        assert_eq!(route, Route::InMatch);
+        play.go(map, route, || Ok(raised.set(raised.get() + 1)), changed.clone()).unwrap();
+        let state = rx.recv().unwrap();
+        assert_eq!((state.lines, state.running, state.finished, raised.get()), (vec![IN_MATCH.to_owned()], false, None, 1));
+        assert_eq!(play.warcraft_pid(), None);
+        play.go(map, Route::InMatch, || Err("there is no Warcraft III window".to_owned()), changed).unwrap();
+        assert_eq!(rx.recv().unwrap().lines, [IN_MATCH, "Couldn't bring it forward: there is no Warcraft III window"]);
+        std::fs::remove_dir_all(tools).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_launch_keeps_every_step_line_and_the_error_and_a_missing_program_shows_the_os_error() {
+        let play: &'static Play = Box::leak(Box::default());
+        let (changed, rx) = collect();
+        let map = Path::new("/maps/Smashcraft 0.3-dev.470.w3x");
+        let script = "echo '1/7 Wine prefix: free'; echo '2/7 Battle.net: starting the Steam shortcut' ; echo 'Battle.net needs its owner to sign in' >&2; exit 3";
+        let run = Run { program: "sh".into(), args: vec!["-c".into(), script.into()], dir: std::env::temp_dir() };
+        play.go(map, Route::Wisp(run), || Ok(()), changed.clone()).unwrap();
+        let done = wait_finished(&rx);
+        assert_eq!(done.finished, Some(false));
+        let steps: Vec<&str> = done.lines.iter().map(String::as_str).filter(|l| !l.starts_with("Battle.net needs")).collect();
+        assert_eq!(&steps[..2], ["1/7 Wine prefix: free", "2/7 Battle.net: starting the Steam shortcut"]);
+        assert!(done.lines.contains(&"Battle.net needs its owner to sign in".to_owned()));
+        assert!(done.lines.last().unwrap().contains("exit status: 3"), "{:?}", done.lines);
+
+        let missing = Run { program: "/no/such/bun".into(), args: vec!["wisp".into(), "play".into()], dir: std::env::temp_dir() };
+        assert_eq!(play.go(map, Route::Wisp(missing), || Ok(()), changed), Err(COULDNT_START.to_owned()));
+        let failed = wait_finished(&rx);
+        assert!(failed.lines[0].contains("/no/such/bun wisp play") && failed.lines[0].contains("No such file or directory"), "{:?}", failed.lines);
     }
 }

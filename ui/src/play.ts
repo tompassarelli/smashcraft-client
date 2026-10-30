@@ -1,5 +1,6 @@
 import { h } from "./dom";
 import type { PlayState } from "./model";
+import { stepsAfterError } from "./play-steps";
 import { api } from "./tauri";
 
 /** The header's Play button and the steps of the current run beneath it. */
@@ -19,8 +20,8 @@ export function playButton(): HTMLElement {
     try {
       render(await api.play());
     } catch (error) {
-      panel.hidden = false;
-      steps.replaceChildren(h("li", {}, String(error)));
+      const state = await api.playState().catch(() => undefined);
+      render({ available: true, running: false, ...state, map: null, lines: stepsAfterError(state?.lines ?? [], error), finished: false });
     }
   });
   panel.addEventListener("click", (e) => {

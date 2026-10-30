@@ -75,13 +75,22 @@ To move to a newer Smashcraft, put its commit in `smashcraft.ref`.
 
 ## Play
 
-Play starts Warcraft III on the current map, the highest
-`Smashcraft 0.0.N.w3x` directly in `Maps/00-Smashcraft` beside the History
-page's folders, with Warcraft's own `-launch -loadfile MAP`
-(src-tauri/src/play.rs). Warcraft III is `WARCRAFT_III` when set (any program
-taking those arguments, such as a Proton launch script), else on Windows its
-default install under Program Files, else on Linux the install in the Wine
-prefix that holds the map, run with `wine` (`WINE`) and that `WINEPREFIX`.
+Play needs a Smashcraft map in `Maps/00-Smashcraft` beside the History
+page's folders (src-tauri/src/play.rs), and picks its route by system:
+
+- Warcraft III already in a match (the controller status says so): Play
+  starts nothing, says "You're in a match: switch to the Warcraft III window"
+  and raises that window.
+- `WARCRAFT_III` set: that program (such as a launch script) is run with
+  Warcraft's own `-launch -loadfile MAP`; on Windows without it, the default
+  install under Program Files is.
+- Linux with `SMASHCRAFT_TS` set: `bun wisp play` in Smashcraft's tools, which
+  starts Battle.net through the Steam shortcut "Warcraft III (Battle.net)",
+  runs the doctor checks and hosts the map through the menus. The panel lists
+  each step line it prints, and its error output and exit status when it
+  fails.
+- Linux without it: Play starts that Steam shortcut and says to sign in, start
+  Warcraft III and press Play again.
 
 ## Controller support
 

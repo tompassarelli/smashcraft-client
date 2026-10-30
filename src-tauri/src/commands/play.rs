@@ -15,7 +15,7 @@ pub fn play_state(state: State<AppState>) -> play::PlayState {
 #[tauri::command]
 pub fn play(app: AppHandle, state: State<AppState>) -> Result<play::PlayState, String> {
     let maps = maps_of(&state);
-    PLAY.start(&maps, move |snapshot| {
+    PLAY.start(&maps, state.link.in_match(), move |snapshot| {
         let _ = app.emit("play", snapshot);
     })?;
     Ok(PLAY.state(&maps))

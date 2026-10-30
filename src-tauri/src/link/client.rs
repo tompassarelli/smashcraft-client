@@ -98,6 +98,12 @@ impl Shared {
         })
     }
 
+    /// Warcraft III is running and the map reports a match in progress.
+    pub fn in_match(&self) -> bool {
+        let snapshot = self.snapshot.lock().unwrap();
+        snapshot.game.is_some() && snapshot.session.as_ref().is_some_and(|session| session.phase == padbridge_model::Phase::Match)
+    }
+
     pub fn state(&self) -> ControllerState {
         ControllerState::new(&self.sup.lock().unwrap(), &self.snapshot.lock().unwrap())
     }
