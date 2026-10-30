@@ -70,6 +70,12 @@ responsibility = "Tauri invoke wrappers, protocol model and pure helpers (record
 may_use = ["ui-generated"]
 
 [[module]]
+name = "clean-room"
+paths = ["clean-room/**", ".githooks/**"]
+responsibility = "The clean-room check of the tracked tree (wisp:docs/clean-room.md), run by the pre-push hook and CI."
+may_use = ["scripts"]
+
+[[module]]
 name = "scripts"
 thresholds = { function_lines = 150, function_complexity = 30 }
 paths = ["scripts/**"]

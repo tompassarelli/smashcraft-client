@@ -1,0 +1,10 @@
+[package]
+name = "clean-room"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96.1"
+publish = false
+license = "MIT"
+description = "The clean-room check: refuses game files, copied game scripts, memory access and address tables in the tracked tree (wisp:docs/clean-room.md)"
+
+[dependencies]

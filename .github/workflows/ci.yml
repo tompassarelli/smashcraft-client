@@ -141,6 +141,19 @@ jobs:
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Linux and Windows builds of the Smashcraft client $GITHUB_REF_NAME, with the padbridge service." || true
           gh release upload "$GITHUB_REF_NAME" dist/${{ matrix.asset }}.* --clobber
 
+  # Game files, copied game scripts, memory access and address tables in the tracked tree (wisp:docs/clean-room.md, "The check").
+  clean-room:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Pinned Rust toolchain
+        working-directory: clean-room
+        run: rustup toolchain install
+      - name: Check the tree
+        working-directory: clean-room
+        run: cargo test --locked && cargo run --locked --quiet -- ..
+
   # New structural debt (import cycle, layer violation, oversize file or function, rising hotspot) against structure.toml (north:harness/code-health).
   code-health:
     if: github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/main'
@@ -166,7 +179,7 @@ jobs:
           bun "$RUNNER_TEMP/north/harness/code-health/cli.ts" gate "$base" HEAD
 
   ci:
-    needs: [changes, ui, rust, code-health]
+    needs: [changes, ui, rust, clean-room, code-health]
     if: always()
     runs-on: ubuntu-latest
     steps:

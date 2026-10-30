@@ -1,0 +1,6 @@
+# Committed files the clean-room check (clean-room/, after wisp:host/checks/cleanRoom.ts and wisp:docs/clean-room.md) would refuse, with their origin.
+# PATH<TAB>ORIGIN (original or generated)<TAB>HOW it was made
+src-tauri/icons/icon.png	generated	bun scripts/icons.ts draws the gold disc with a dark ring and white plus
+src-tauri/icons/128x128.png	generated	bun scripts/icons.ts draws the gold disc with a dark ring and white plus
+src-tauri/icons/32x32.png	generated	bun scripts/icons.ts draws the gold disc with a dark ring and white plus
+src-tauri/tests/fixtures/stormlib.w3x	generated	StormLib 9.30 archive of our own war3map.lua with a 512-byte map header (src-tauri/tests/fixtures/README.md)

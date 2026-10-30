@@ -1,0 +1,15 @@
+#!/usr/bin/env bun
+// Git's pre-push hook: the clean-room check (clean-room/, wisp:docs/clean-room.md "The check") refuses the push on a problem.
+import { dirname, join } from "node:path";
+import { findCargo, hostSearch } from "../scripts/cargo";
+
+const client = dirname(import.meta.dir);
+const cargo = findCargo(hostSearch(client));
+if (cargo === undefined) throw new Error("no cargo: install rustup, or put cargo on PATH or in CARGO");
+const path = cargo.path === undefined ? process.env.PATH : `${cargo.path}:${process.env.PATH ?? ""}`;
+const check = [...cargo.command, "run", "--quiet", "--locked", "--manifest-path", join(client, "clean-room/Cargo.toml"), "--", client];
+const needsCompiler = Bun.which("cc") === null && Bun.which("nix-shell") !== null;
+const quoted = check.map((word) => `'${word.replaceAll("'", "'\\''")}'`).join(" ");
+const command = needsCompiler ? ["nix-shell", "-p", "gcc", "--run", quoted] : check;
+const run = Bun.spawnSync(command, { env: { ...process.env, PATH: path }, stdout: "inherit", stderr: "inherit" });
+process.exit(run.exitCode);
