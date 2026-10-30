@@ -1,8 +1,9 @@
 //! What the client remembers between runs, as JSON in its config folder.
 
+use crate::files;
+use padbridge_model::{ClientMessage, ProfileChoice};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use padbridge_model::{ClientMessage, ProfileChoice};
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -42,13 +43,8 @@ impl Store {
     }
 
     pub fn save(&self, settings: &Settings) -> Result<(), String> {
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-        }
-        let tmp = self.path.with_extension("json.tmp");
         let text = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
-        std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
-        std::fs::rename(&tmp, &self.path).map_err(|e| e.to_string())
+        files::write_atomic(&self.path, text)
     }
 }
 

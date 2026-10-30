@@ -1,11 +1,11 @@
 use tauri::State;
 
-use crate::replays;
+use crate::{files, replays};
 use crate::state::{maps_of, record_folders_of, AppState};
 use crate::warcraft_replays;
 
 #[tauri::command]
-pub fn read_replays(state: State<AppState>) -> Vec<replays::ReplayFile> {
+pub fn read_replays(state: State<AppState>) -> Vec<files::TextFile> {
     let folders = record_folders_of(&state.settings.lock().unwrap());
     replays::read_replay_files(&folders, &state.kept.replays)
 }

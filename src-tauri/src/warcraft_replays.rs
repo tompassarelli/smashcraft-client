@@ -7,11 +7,12 @@
 //! A game is a whole lobby session, every rematch included; the client's own
 //! per-match replays are smashcraft-client:src-tauri/src/replays.rs.
 
+use crate::files::{self, millis, modified_ms};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 
 const LAST_REPLAY: &str = "LastReplay.w3g";
 /// Allowed between a record's write time and the game's start or end.
@@ -35,14 +36,6 @@ pub struct WarcraftGame {
     pub replays: String,
     /// The match record files written during the game.
     pub records: Vec<String>,
-}
-
-fn millis(time: SystemTime) -> u64 {
-    time.duration_since(UNIX_EPOCH).map_or(0, |since| since.as_millis() as u64)
-}
-
-fn modified(path: &Path) -> Option<u64> {
-    std::fs::metadata(path).and_then(|meta| meta.modified()).ok().map(millis)
 }
 
 /// Warcraft's `Replays` folders beside a CustomMapData folder: each Battle.net
@@ -96,7 +89,7 @@ fn records_between(folder: &str, from: u64, to: u64) -> Vec<String> {
                 .and_then(|rest| rest.strip_suffix(".txt"))
                 .is_some_and(|serial| !serial.is_empty() && serial.bytes().all(|b| b.is_ascii_digit()))
         })
-        .filter(|entry| modified(&entry.path()).is_some_and(|at| (from..=to).contains(&at)))
+        .filter(|entry| modified_ms(std::fs::metadata(entry.path())).is_some_and(|at| (from..=to).contains(&at)))
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .collect();
     names.sort();
@@ -127,7 +120,7 @@ impl Library {
     pub fn keep_last(&self, folder: &str, replays: &Path) -> Result<Option<WarcraftGame>, String> {
         let source = replays.join(LAST_REPLAY);
         let Ok(bytes) = std::fs::read(&source) else { return Ok(None) };
-        let Some(ended) = modified(&source) else { return Ok(None) };
+        let Some(ended) = modified_ms(std::fs::metadata(&source)) else { return Ok(None) };
         let hash = format!("{:x}", Sha256::digest(&bytes));
         let mut games = self.games();
         if games.iter().any(|game| game.hash == hash) {
@@ -138,9 +131,8 @@ impl Library {
         if records.is_empty() {
             return Ok(None);
         }
-        std::fs::create_dir_all(&self.dir).map_err(|e| e.to_string())?;
         let file = format!("warcraft-{}-{}.w3g", stamp(ended), &hash[..12]);
-        std::fs::write(self.dir.join(&file), &bytes).map_err(|e| e.to_string())?;
+        files::write_atomic(&self.dir.join(&file), &bytes)?;
         let game = WarcraftGame {
             file,
             hash,
@@ -151,9 +143,7 @@ impl Library {
             records,
         };
         games.push(game.clone());
-        let tmp = self.dir.join("games.json.tmp");
-        std::fs::write(&tmp, serde_json::to_string_pretty(&games).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-        std::fs::rename(&tmp, self.index()).map_err(|e| e.to_string())?;
+        files::write_atomic(&self.index(), serde_json::to_string_pretty(&games).map_err(|e| e.to_string())?)?;
         Ok(Some(game))
     }
 
@@ -197,6 +187,7 @@ pub fn watch(library: Library, folders: impl Fn() -> Vec<String>) {
 mod tests {
     use super::*;
     use std::fs::File;
+    use std::time::UNIX_EPOCH;
 
     const MINUTE: u64 = 60_000;
 

@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::records;
+use crate::{files, records};
 use crate::state::{record_folders_of, AppState};
 
 #[tauri::command]
@@ -15,7 +15,7 @@ pub fn set_record_folders(state: State<AppState>, folders: Vec<String>) -> Resul
 }
 
 #[tauri::command]
-pub fn read_records(state: State<AppState>) -> Vec<records::RecordFile> {
+pub fn read_records(state: State<AppState>) -> Vec<files::TextFile> {
     let folders = record_folders_of(&state.settings.lock().unwrap());
     records::read_record_files(&folders)
 }

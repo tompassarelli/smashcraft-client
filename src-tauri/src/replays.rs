@@ -5,46 +5,23 @@
 //! a replay needs. The pages join, check and play them
 //! (smashcraft-client:ui/src/replays.ts); this side only reads and keeps files.
 
-use serde::Serialize;
+use crate::files::{self, TextFile};
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
 
 const PREFIX: &str = "smashcraft-replay-";
 const SUFFIX: &str = ".txt";
 
-/// A manifest the map wrote, or a joined replay the client keeps.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct ReplayFile {
-    pub folder: String,
-    pub name: String,
-    pub text: String,
-    /// When the file was last written, in milliseconds since 1970; 0 when unknown.
-    pub modified: u64,
-}
-
 /// The serial a manifest's name `smashcraft-replay-<serial>.txt` carries; a part's name has none.
 pub fn manifest_serial(name: &str) -> Option<u32> {
-    let serial = name.strip_prefix(PREFIX)?.strip_suffix(SUFFIX)?;
-    if serial.is_empty() || !serial.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    serial.parse().ok()
+    files::serial_of(name, PREFIX, SUFFIX)?.parse().ok()
 }
 
 pub fn part_name(serial: u32, part: u32) -> String {
     format!("{PREFIX}{serial}-{part}{SUFFIX}")
 }
 
-fn modified(path: &Path) -> u64 {
-    std::fs::metadata(path)
-        .and_then(|meta| meta.modified())
-        .ok()
-        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
-        .map_or(0, |since| since.as_millis() as u64)
-}
-
 /// Every manifest in `folders`, and every `.txt` file in `kept`; missing or unreadable ones are skipped.
-pub fn read_replay_files(folders: &[String], kept: &Path) -> Vec<ReplayFile> {
+pub fn read_replay_files(folders: &[String], kept: &Path) -> Vec<TextFile> {
     let mut files = Vec::new();
     let mut read = |folder: &Path, wanted: &dyn Fn(&str) -> bool| {
         let Ok(entries) = std::fs::read_dir(folder) else { return };
@@ -54,11 +31,11 @@ pub fn read_replay_files(folders: &[String], kept: &Path) -> Vec<ReplayFile> {
                 continue;
             }
             let Ok(bytes) = std::fs::read(entry.path()) else { continue };
-            files.push(ReplayFile {
+            files.push(TextFile {
                 folder: folder.to_string_lossy().into_owned(),
                 name,
                 text: String::from_utf8_lossy(&bytes).into_owned(),
-                modified: modified(&entry.path()),
+                modified: files::modified_ms(std::fs::metadata(entry.path())).unwrap_or(0),
             });
         }
     };
@@ -102,11 +79,8 @@ impl Kept {
     }
 
     fn write(dir: &Path, name: &str, text: &str) -> Result<PathBuf, String> {
-        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
         let path = dir.join(name);
-        let tmp = dir.join(format!("{name}.tmp"));
-        std::fs::write(&tmp, text).map_err(|e| e.to_string())?;
-        std::fs::rename(&tmp, &path).map_err(|e| e.to_string())?;
+        files::write_atomic(&path, text)?;
         Ok(path)
     }
 

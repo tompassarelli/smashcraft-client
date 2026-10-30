@@ -5,6 +5,7 @@
 
 pub mod autostart;
 pub mod cli;
+pub mod files;
 pub mod commands;
 pub mod game;
 pub mod instance_lock;

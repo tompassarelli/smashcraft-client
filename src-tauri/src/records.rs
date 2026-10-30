@@ -4,32 +4,19 @@
 //! (smashcraft-client:ui/src/records.ts); this side only reads the folders and
 //! keeps the store as JSON in the client's data folder.
 
-use serde::Serialize;
+use crate::files::{self, TextFile};
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
 
 const PREFIX: &str = "smashcraft-match-";
 const SUFFIX: &str = ".txt";
 
-/// One record file as it is on disk.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct RecordFile {
-    pub folder: String,
-    pub name: String,
-    pub text: String,
-    /// When the file was last written, in milliseconds since 1970; 0 when unknown.
-    pub modified: u64,
-}
-
 /// Whether `name` is a match record's file name, `smashcraft-match-<serial>.txt`.
 fn is_record_name(name: &str) -> bool {
-    name.strip_prefix(PREFIX)
-        .and_then(|rest| rest.strip_suffix(SUFFIX))
-        .is_some_and(|serial| !serial.is_empty() && serial.bytes().all(|b| b.is_ascii_digit()))
+    files::serial_of(name, PREFIX, SUFFIX).is_some()
 }
 
 /// Every record file in `folders`; a missing or unreadable folder or file is skipped.
-pub fn read_record_files(folders: &[String]) -> Vec<RecordFile> {
+pub fn read_record_files(folders: &[String]) -> Vec<TextFile> {
     let mut files = Vec::new();
     for folder in folders {
         let Ok(entries) = std::fs::read_dir(folder) else { continue };
@@ -39,13 +26,8 @@ pub fn read_record_files(folders: &[String]) -> Vec<RecordFile> {
                 continue;
             }
             let Ok(bytes) = std::fs::read(entry.path()) else { continue };
-            let modified = entry
-                .metadata()
-                .and_then(|meta| meta.modified())
-                .ok()
-                .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
-                .map_or(0, |since| since.as_millis() as u64);
-            files.push(RecordFile { folder: folder.clone(), name, text: String::from_utf8_lossy(&bytes).into_owned(), modified });
+            let modified = files::modified_ms(entry.metadata()).unwrap_or(0);
+            files.push(TextFile { folder: folder.clone(), name, text: String::from_utf8_lossy(&bytes).into_owned(), modified });
         }
     }
     files.sort_by(|a, b| (&a.folder, &a.name).cmp(&(&b.folder, &b.name)));
@@ -126,12 +108,7 @@ impl History {
     }
 
     pub fn save(&self, value: &serde_json::Value) -> Result<(), String> {
-        if let Some(dir) = self.path.parent() {
-            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
-        }
-        let tmp = self.path.with_extension("json.tmp");
-        std::fs::write(&tmp, serde_json::to_string(value).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-        std::fs::rename(&tmp, &self.path).map_err(|e| e.to_string())
+        files::write_atomic(&self.path, serde_json::to_string(value).map_err(|e| e.to_string())?)
     }
 }
 

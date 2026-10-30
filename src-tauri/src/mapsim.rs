@@ -10,8 +10,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::UNIX_EPOCH;
 
+use crate::files;
 use crate::lua32::Lua;
 
 /// Loads a map's bundle without starting the map, adds the viewer's modules
@@ -54,7 +54,7 @@ fn smashcraft_maps(folder: &Path, depth: u32, found: &mut Vec<PathBuf>) {
 
 fn stamp_of_file(path: &Path) -> (u64, u64) {
     let meta = std::fs::metadata(path).ok();
-    let modified = meta.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map_or(0, |d| d.as_millis() as u64);
+    let modified = meta.as_ref().and_then(|m| m.modified().ok()).map_or(0, files::millis);
     (modified, meta.map_or(0, |m| m.len()))
 }
 
