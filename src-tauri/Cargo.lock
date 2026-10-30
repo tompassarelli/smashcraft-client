@@ -2543,7 +2543,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 [[package]]
 name = "relay"
 version = "0.1.0"
-source = "git+https://github.com/tompassarelli/wisp?rev=fdaac7e67b827a68a58ca6a7741022c1f0ae2753#fdaac7e67b827a68a58ca6a7741022c1f0ae2753"
+source = "git+https://github.com/tompassarelli/wisp?rev=09832b76e5c46eccccf8ff324b3451ab20f44d1b#09832b76e5c46eccccf8ff324b3451ab20f44d1b"
 dependencies = [
  "relay-proto",
 ]
@@ -2551,7 +2551,7 @@ dependencies = [
 [[package]]
 name = "relay-agent"
 version = "0.1.0"
-source = "git+https://github.com/tompassarelli/wisp?rev=fdaac7e67b827a68a58ca6a7741022c1f0ae2753#fdaac7e67b827a68a58ca6a7741022c1f0ae2753"
+source = "git+https://github.com/tompassarelli/wisp?rev=09832b76e5c46eccccf8ff324b3451ab20f44d1b#09832b76e5c46eccccf8ff324b3451ab20f44d1b"
 dependencies = [
  "relay-proto",
 ]
@@ -2559,7 +2559,7 @@ dependencies = [
 [[package]]
 name = "relay-proto"
 version = "0.1.0"
-source = "git+https://github.com/tompassarelli/wisp?rev=fdaac7e67b827a68a58ca6a7741022c1f0ae2753#fdaac7e67b827a68a58ca6a7741022c1f0ae2753"
+source = "git+https://github.com/tompassarelli/wisp?rev=09832b76e5c46eccccf8ff324b3451ab20f44d1b#09832b76e5c46eccccf8ff324b3451ab20f44d1b"
 
 [[package]]
 name = "reqwest"
