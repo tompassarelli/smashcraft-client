@@ -51,12 +51,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_settings_file_from_before_the_rename_still_reads_its_folders() {
-        let old: Settings = serde_json::from_str(r#"{"controller_on":false,"record_folders":["/games/CustomMapData"]}"#).unwrap();
-        assert_eq!(old.custom_map_data_folders, Some(vec!["/games/CustomMapData".into()]));
-    }
-
-    #[test]
     fn settings_round_trip_and_default_when_missing() {
         let dir = std::env::temp_dir().join(format!("smashcraft-settings-{}", std::process::id()));
         let store = Store::new(&dir);
@@ -71,6 +65,8 @@ mod tests {
         assert!(matches!(settings.reconnect_messages().as_slice(), [ClientMessage::Profile(ProfileChoice::AnyMap)]));
         store.save(&settings).unwrap();
         assert_eq!(store.load(), settings);
+        let before_the_rename: Settings = serde_json::from_str(r#"{"controller_on":false,"record_folders":["/games/CustomMapData"]}"#).unwrap();
+        assert_eq!(before_the_rename.custom_map_data_folders, Some(vec!["/games/CustomMapData".into()]));
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
