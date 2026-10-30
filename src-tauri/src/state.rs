@@ -21,6 +21,12 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// The record folders the player chose, or the ones found on this computer.
+    pub fn folders(&self) -> Vec<String> {
+        let settings = self.settings.lock().unwrap();
+        settings.record_folders.clone().unwrap_or_else(records::default_folders)
+    }
+
     pub fn update(&self, change: impl FnOnce(&mut Settings)) -> Result<(), String> {
         let mut settings = self.settings.lock().unwrap();
         change(&mut settings);
@@ -36,10 +42,6 @@ pub fn show_window(app: &AppHandle) {
     }
 }
 
-pub fn record_folders_of(settings: &Settings) -> Vec<String> {
-    settings.record_folders.clone().unwrap_or_else(records::default_folders)
-}
-
 pub fn maps_of(state: &AppState) -> Vec<std::path::PathBuf> {
-    mapsim::maps_folders(&record_folders_of(&state.settings.lock().unwrap()))
+    mapsim::maps_folders(&state.folders())
 }

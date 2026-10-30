@@ -1,21 +1,20 @@
 use tauri::State;
 
-use crate::state::{AppState, record_folders_of};
+use crate::state::AppState;
 use crate::{files, records};
 
 #[tauri::command]
 pub fn record_folders(state: State<AppState>) -> Vec<String> {
-    record_folders_of(&state.settings.lock().unwrap())
+    state.folders()
 }
 
 #[tauri::command]
 pub fn set_record_folders(state: State<AppState>, folders: Vec<String>) -> Result<Vec<String>, String> {
     state.update(|s| s.record_folders = Some(folders))?;
-    Ok(record_folders_of(&state.settings.lock().unwrap()))
+    Ok(state.folders())
 }
 
 #[tauri::command]
 pub fn read_records(state: State<AppState>) -> Vec<files::TextFile> {
-    let folders = record_folders_of(&state.settings.lock().unwrap());
-    records::read_record_files(&folders)
+    records::read_record_files(&state.folders())
 }
