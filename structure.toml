@@ -36,7 +36,7 @@ may_use = []
 [[module]]
 name = "launch"
 paths = ["src-tauri/src/launch/**", "src-tauri/src/play.rs", "src-tauri/src/online.rs"]
-responsibility = "Start Warcraft III on the installed map, run bun wisp online and relay matches on Smashcraft Servers."
+responsibility = "Start Warcraft III on the installed map, run bun wisp online, the standalone window through Wisp's relay and relay matches on Smashcraft Servers."
 may_use = ["game-files", "servers"]
 
 [[module]]

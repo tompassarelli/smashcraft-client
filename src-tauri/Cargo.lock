@@ -2941,6 +2941,7 @@ dependencies = [
  "cc",
  "crc32fast",
  "flate2",
+ "libc",
  "padbridge-model",
  "relay",
  "relay-agent",

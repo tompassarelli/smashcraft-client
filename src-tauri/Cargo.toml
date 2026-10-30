@@ -33,6 +33,9 @@ relay-agent = { git = "https://github.com/tompassarelli/wisp", rev = "09832b76e5
 relay-proto = { git = "https://github.com/tompassarelli/wisp", rev = "09832b76e5c46eccccf8ff324b3451ab20f44d1b" }
 smashcraft-servers = { path = "servers", optional = true }
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 relay = { git = "https://github.com/tompassarelli/wisp", rev = "09832b76e5c46eccccf8ff324b3451ab20f44d1b" }
 

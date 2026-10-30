@@ -1,4 +1,4 @@
-// The Online page's commands and events: Battle.net through wisp online, and Smashcraft Servers.
+// The Online page's commands and events: Wisp's standalone window through its relay, Battle.net through wisp online, and Smashcraft Servers.
 import type { OnlineState } from "./model";
 import { invoke, tauri } from "./tauri";
 
@@ -17,6 +17,11 @@ export const onlineApi = {
   relayHost: () => invoke<OnlineState>("relay_host"),
   relayJoin: (code: string) => invoke<OnlineState>("relay_join", { code }),
   relayCancel: () => invoke<void>("relay_cancel"),
+  standaloneState: () => invoke<OnlineState>("standalone_state"),
+  standaloneHost: () => invoke<OnlineState>("standalone_host"),
+  standaloneJoin: (code: string) => invoke<OnlineState>("standalone_join", { code }),
+  standaloneCancel: () => invoke<void>("standalone_cancel"),
+  onStandalone: (handler: (state: OnlineState) => void) => tauri().event.listen<OnlineState>("standalone", (e) => handler(e.payload)),
   onOnline: (handler: (state: OnlineState) => void) => tauri().event.listen<OnlineState>("online", (e) => handler(e.payload)),
   onRelay: (handler: (state: OnlineState) => void) => tauri().event.listen<OnlineState>("relay", (e) => handler(e.payload)),
 };

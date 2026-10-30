@@ -128,7 +128,20 @@ records tests replay (AGENTS.md).
 
 ## Online
 
-The Online page hosts a private Battle.net game and shows its join code, or
+The Online page opens on "Smashcraft window": Host runs `bun wisp play
+--standalone --host --relay nearest` in Smashcraft's tools (`SMASHCRAFT_TS`,
+the way Online's other runs start), which pings the relay regions, opens a
+room on the nearest and shows its code and region on the page; Join runs
+`bun wisp play --standalone --join CODE` with the code the host gave. Both
+play in Wisp's own window, without Warcraft III (wisp:docs/play.md, "Host and
+join"; smashcraft:docs/commands/online.md). The run's output lines and the
+round trip to the relay show on the page; its other error output goes to
+`standalone.log` in the client's log folder. Cancel ends the run and its
+window. `WISP_RELAYS="name=ADDRESS:PORT"` adds a relay region, which a run
+started from the client's environment uses. The runner is
+src-tauri/src/online.rs and the page ui/src/pages/online.ts.
+
+Beside it the page offers Battle.net: it hosts a private Battle.net game and shows its join code, or
 joins one by code (smashcraft:docs/design/client.md, "Direct play"). It runs
 `bun wisp online host` or `join CODE` in Smashcraft's tools (`SMASHCRAFT_TS`,
 a Smashcraft checkout's ts/ with its dependencies installed) and shows their

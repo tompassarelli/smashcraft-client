@@ -1,6 +1,6 @@
 import { h } from "../dom";
 import type { OnlineState } from "../model";
-import { looksLikeCode, type Network, networkView, type OnlineView, onlineView, SMASHCRAFT_SERVERS_OPT_IN } from "../online";
+import { looksLikeCode, looksLikeRelayCode, type Network, networkView, type OnlineView, onlineView, SMASHCRAFT_SERVERS_OPT_IN, type StandaloneView, standaloneView } from "../online";
 import { onlineApi } from "../tauri-online";
 
 const EMPTY: OnlineState = { available: false, running: false, map: null, mode: null, lines: [], finished: null };
@@ -40,6 +40,7 @@ function optInCard(optIn: () => void, notNow: () => void): HTMLElement {
 }
 
 const NETWORKS: { network: Network; label: string; hint: string }[] = [
+  { network: "standalone", label: "Smashcraft window", hint: "Smashcraft's own window through Smashcraft's relay; Warcraft III stays closed" },
   { network: "battle.net", label: "Battle.net", hint: "A private Battle.net game with a join code" },
   { network: "smashcraft_servers", label: "Smashcraft Servers", hint: "Smashcraft's relay, once you opt in" },
 ];
@@ -73,42 +74,58 @@ function codeBox(view: OnlineView, startNow: (() => void) | undefined): HTMLElem
 }
 
 /** What the page shows for the network in use: its run, whether it can run here, and the run's view. */
-type Shown = { relayed: boolean; available: boolean; state: OnlineState; view: OnlineView };
+type Shown = { network: Network; available: boolean; state: OnlineState; view: OnlineView | StandaloneView };
 
-function playGrid({ relayed, available, state, view }: Shown, codeInput: HTMLElement, act: { host: () => void; join: () => void; startNow: () => void }): HTMLElement {
-  const hosting = state.mode === "host" && (view.busy || view.code !== undefined);
+const HOST_NOTE: Record<Network, string> = {
+  standalone: "Opens Smashcraft's window and a room on the nearest relay. Give your opponent the code.",
+  smashcraft_servers: "Start Warcraft III with Play and sign in, then host. Give your opponent the code.",
+  "battle.net": "Open Warcraft III and sign in, then host. Give your opponent the code; press Start now once they have joined.",
+};
+
+const JOIN_NOTE: Record<Network, string> = {
+  standalone: "Type the code your opponent gave you.",
+  smashcraft_servers: "Start Warcraft III with Play and sign in, then type the code your opponent gave you.",
+  "battle.net": "Open Warcraft III and sign in, then type the code your opponent gave you.",
+};
+
+function regionLine(view: OnlineView | StandaloneView): HTMLElement | null {
+  return "region" in view && view.region ? h("p.note", {}, `Region ${view.region.name}, ${view.region.rttMs} ms away`) : null;
+}
+
+function playGrid({ network, available, state, view }: Shown, codeInput: HTMLElement, act: { host: () => void; join: () => void; startNow: () => void }): HTMLElement {
+  const hosting = state.mode === "host" && (view.busy || (network !== "standalone" && view.code !== undefined));
+  const hostBody = hosting && view.code !== undefined ? [codeBox(view, network === "battle.net" ? act.startNow : undefined), regionLine(view)] : [h("button.primary.online-go", { type: "button", onclick: act.host, disabled: !available || view.busy }, "Host")];
   return h(
     "div.grid",
     {},
-    h(
-      "section.card",
-      {},
-      h("h2", {}, "Host a game"),
-      h("p.note", {}, relayed ? "Start Warcraft III with Play and sign in, then host. Give your opponent the code." : "Open Warcraft III and sign in, then host. Give your opponent the code; press Start now once they have joined."),
-      hosting && view.code !== undefined ? codeBox(view, relayed ? undefined : act.startNow) : h("button.primary.online-go", { type: "button", onclick: act.host, disabled: !available || view.busy }, "Host"),
-    ),
+    h("section.card", {}, h("h2", {}, "Host a game"), h("p.note", {}, HOST_NOTE[network]), ...hostBody.filter((part) => part !== null)),
     h(
       "section.card",
       {},
       h("h2", {}, "Join a game"),
-      h("p.note", {}, relayed ? "Start Warcraft III with Play and sign in, then type the code your opponent gave you." : "Open Warcraft III and sign in, then type the code your opponent gave you."),
+      h("p.note", {}, JOIN_NOTE[network]),
       h("div.online-join", {}, codeInput, h("button.primary", { type: "button", onclick: act.join, disabled: !available || view.busy }, "Join")),
+      ...[state.mode === "join" && view.busy ? regionLine(view) : null].filter((part) => part !== null),
     ),
   );
 }
 
-function notes({ relayed, available, view }: Shown, choice: boolean | null, problem: string | undefined, setUp: () => void): HTMLElement[] {
+function notes({ network, available, view }: Shown, choice: boolean | null, problem: string | undefined, setUp: () => void): HTMLElement[] {
   return [
     ...(!available ? [h("p.note", {}, "Online play needs Smashcraft's tools (SMASHCRAFT_TS).")] : []),
     ...(problem ? [h("p.problem", {}, problem)] : []),
-    ...(!relayed && choice === true && !view.busy ? [h("button.quiet", { type: "button", onclick: setUp, title: "After a Warcraft III update, or if hosting can't find Warcraft III's menus" }, "Set up Warcraft III's menus again")] : []),
+    ...(network === "battle.net" && choice === true && !view.busy ? [h("button.quiet", { type: "button", onclick: setUp, title: "After a Warcraft III update, or if hosting can't find Warcraft III's menus" }, "Set up Warcraft III's menus again")] : []),
   ];
 }
 
-/** Follows both runs' events; the returned calls stop following, and a page closed first stops at once. */
-function follow(live: () => boolean, onBattle: (state: OnlineState) => void, onRelay: (state: OnlineState) => void): (() => void)[] {
+const PLACEHOLDER: Record<Network, string> = { standalone: "sgp-ABCD-EFGH-JKMN-P", smashcraft_servers: "0123456789abcdef", "battle.net": "ABCD-EFGH" };
+
+const codeReady = (network: Network, typed: string) => (network === "standalone" ? looksLikeRelayCode(typed) : looksLikeCode(typed, network === "smashcraft_servers" ? 16 : 8));
+
+/** Follows the three runs' events; the returned calls stop following, and a page closed first stops at once. */
+function follow(live: () => boolean, handlers: Record<Network, (state: OnlineState) => void>): (() => void)[] {
   const stops: (() => void)[] = [];
-  for (const listen of [onlineApi.onOnline(onBattle), onlineApi.onRelay(onRelay)]) {
+  for (const listen of [onlineApi.onStandalone(handlers.standalone), onlineApi.onOnline(handlers["battle.net"]), onlineApi.onRelay(handlers.smashcraft_servers)]) {
     void listen.then((unlisten) => {
       if (live()) stops.push(unlisten);
       else unlisten();
@@ -119,22 +136,21 @@ function follow(live: () => boolean, onBattle: (state: OnlineState) => void, onR
 
 export function onlinePage(root: HTMLElement): () => void {
   let live = true;
-  let battle = EMPTY;
-  let relay = EMPTY;
+  const runs: Record<Network, OnlineState> = { standalone: EMPTY, "battle.net": EMPTY, smashcraft_servers: EMPTY };
   let choice: boolean | null = null;
   let servers: boolean | null = null;
-  let picked: Network = "battle.net";
+  let picked: Network = "standalone";
   let problem: string | undefined;
 
-  const codeInput = h("input.code-input", { type: "text", placeholder: "ABCD-EFGH", maxLength: 24, spellcheck: false, autocomplete: "off" });
-  const onServers = () => networkView(picked, servers).network === "smashcraft_servers";
+  const codeInput = h("input.code-input", { type: "text", placeholder: PLACEHOLDER.standalone, maxLength: 40, spellcheck: false, autocomplete: "off" });
+  const inUse = () => networkView(picked, servers).network;
 
   const act = (run: () => Promise<OnlineState | void>) => async () => {
     problem = undefined;
+    const network = inUse();
     try {
       const next = await run();
-      if (next && onServers()) relay = next;
-      else if (next) battle = next;
+      if (next) runs[network] = next;
     } catch (error) {
       problem = String(error);
     }
@@ -152,44 +168,46 @@ export function onlinePage(root: HTMLElement): () => void {
     await onlineApi.optInSmashcraftServers();
     servers = true;
   });
-  const notNow = act(async () => void (picked = "battle.net"));
+  const notNow = act(async () => void (picked = "standalone"));
   const pick = (network: Network) => void act(async () => void (picked = network))();
-  const host = act(() => (onServers() ? onlineApi.relayHost() : onlineApi.onlineHost()));
-  const join = act(() => (onServers() ? onlineApi.relayJoin(codeInput.value) : onlineApi.onlineJoin(codeInput.value)));
+  const by = <T>(options: Record<Network, () => T>) => options[inUse()]();
+  const host = act(() => by({ standalone: onlineApi.standaloneHost, smashcraft_servers: onlineApi.relayHost, "battle.net": onlineApi.onlineHost }));
+  const join = act(() => by({ standalone: () => onlineApi.standaloneJoin(codeInput.value), smashcraft_servers: () => onlineApi.relayJoin(codeInput.value), "battle.net": () => onlineApi.onlineJoin(codeInput.value) }));
   const startNow = act(async () => void (await onlineApi.onlineStartNow()));
-  const cancel = act(() => (onServers() ? onlineApi.relayCancel() : onlineApi.onlineCancel()));
+  const cancel = act(() => by({ standalone: onlineApi.standaloneCancel, smashcraft_servers: onlineApi.relayCancel, "battle.net": onlineApi.onlineCancel }));
 
   const render = () => {
     if (!live) return;
     const { network, askOptIn } = networkView(picked, servers);
-    const relayed = network === "smashcraft_servers";
-    const state = relayed ? relay : battle;
-    const available = relayed || state.available;
-    const view = onlineView(state);
-    codeInput.placeholder = relayed ? "0123456789abcdef" : "ABCD-EFGH";
+    const state = runs[network];
+    const available = network !== "smashcraft_servers" ? state.available : true;
+    const view = network === "standalone" ? standaloneView(state) : onlineView(state);
+    codeInput.placeholder = PLACEHOLDER[network];
     root.replaceChildren(
       networkCard(network, pick),
       ...(askOptIn ? [optInCard(optIn, notNow)] : []),
-      ...(!relayed && choice !== true ? [askCard(choice, setUp, decline)] : []),
-      playGrid({ relayed, available, state, view }, codeInput, { host, join, startNow }),
+      ...(network === "battle.net" && choice !== true ? [askCard(choice, setUp, decline)] : []),
+      playGrid({ network, available, state, view }, codeInput, { host, join, startNow }),
       ...[stepsCard(state, view, cancel)].filter((card) => card !== null),
-      ...notes({ relayed, available, state, view }, choice, problem, setUp),
+      ...notes({ network, available, state, view }, choice, problem, setUp),
     );
   };
 
   codeInput.addEventListener("keydown", (event) => {
-    const relayed = onServers();
-    if (event.key === "Enter" && looksLikeCode(codeInput.value, relayed ? 16 : 8) && !(relayed ? relay : battle).running) void join();
+    const network = inUse();
+    if (event.key === "Enter" && codeReady(network, codeInput.value) && !runs[network].running) void join();
   });
 
-  void Promise.all([onlineApi.onlineState(), onlineApi.menuPageChoice(), onlineApi.relayState(), onlineApi.smashcraftServersChoice()]).then(([current, chosen, relayed, optedIn]) => {
-    battle = current;
+  void Promise.all([onlineApi.onlineState(), onlineApi.menuPageChoice(), onlineApi.relayState(), onlineApi.smashcraftServersChoice(), onlineApi.standaloneState()]).then(([current, chosen, relayed, optedIn, standalone]) => {
+    runs["battle.net"] = current;
     choice = chosen;
-    relay = relayed;
+    runs.smashcraft_servers = relayed;
     servers = optedIn;
+    runs.standalone = standalone;
     render();
   });
-  const stops = follow(() => live, (next) => void ((battle = next), render()), (next) => void ((relay = next), render()));
+  const changed = (network: Network) => (next: OnlineState) => void ((runs[network] = next), render());
+  const stops = follow(() => live, { standalone: changed("standalone"), "battle.net": changed("battle.net"), smashcraft_servers: changed("smashcraft_servers") });
   render();
   return () => {
     live = false;

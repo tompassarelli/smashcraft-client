@@ -76,7 +76,7 @@ pub fn run() {
                 let app = app.handle().clone();
                 move || instance_lock::listen(instance, move || show_window(&app))
             });
-            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), relay: Arc::default(), log_dir, kept, mapsims, warcraft });
+            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), standalone: Arc::default(), relay: Arc::default(), log_dir, kept, mapsims, warcraft });
             std::thread::spawn({
                 let (app, library) = (app.handle().clone(), warcraft_replays::Library::new(&app.path().app_data_dir()?));
                 move || warcraft_replays::watch(library, move || record_folders_of(&app.state::<AppState>().settings.lock().unwrap()))
