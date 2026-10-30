@@ -1,6 +1,6 @@
+use padbridge_model::{Binding, ClientMessage, PadKind, PadPreset, ProfileChoice, RightStick, TriggerShields};
 use serde::Serialize;
 use tauri::{AppHandle, State};
-use padbridge_model::{Binding, ClientMessage, PadKind, PadPreset, ProfileChoice, RightStick, TriggerShields};
 
 use crate::autostart;
 use crate::link::ControllerState;

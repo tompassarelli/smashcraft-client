@@ -34,11 +34,7 @@ pub fn service_program() -> PathBuf {
         return path.into();
     }
     let name = if cfg!(windows) { "padbridge.exe" } else { "padbridge" };
-    std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(|dir| dir.join(name)))
-        .filter(|path| path.exists())
-        .unwrap_or_else(|| name.into())
+    std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join(name))).filter(|path| path.exists()).unwrap_or_else(|| name.into())
 }
 
 /// Smashcraft's plug-in (smashcraft:controller): `wc3-journal` beside this
@@ -54,12 +50,7 @@ impl Starter for BundledService {
     fn start(&self) -> Result<(), String> {
         let program = service_program();
         let stderr = match &self.log {
-            Some(path) => std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)
-                .map(Stdio::from)
-                .unwrap_or_else(|_| Stdio::null()),
+            Some(path) => std::fs::OpenOptions::new().create(true).append(true).open(path).map(Stdio::from).unwrap_or_else(|_| Stdio::null()),
             None => Stdio::null(),
         };
         let mut child = Command::new(&program)
@@ -163,10 +154,8 @@ pub fn run(shared: Arc<Shared>, port: u16, sink: Arc<dyn Sink>, starter: Arc<dyn
             }
             Err(_) => {
                 let action = shared.sup.lock().unwrap().unreachable(Instant::now());
-                if action == Action::Start {
-                    if let Err(_why) = starter.start() {
-                        shared.sup.lock().unwrap().start_failed();
-                    }
+                if action == Action::Start && starter.start().is_err() {
+                    shared.sup.lock().unwrap().start_failed();
                 }
                 let state = shared.state();
                 if last_link != Some((state.link, state.view.problem.is_some(), state.wanted)) {
@@ -182,9 +171,9 @@ pub fn run(shared: Arc<Shared>, port: u16, sink: Arc<dyn Sink>, starter: Arc<dyn
 #[cfg(test)]
 mod tests {
     use super::*;
+    use padbridge_model::{self as model, Game, Light, Link, Pad, Phase, Profile, ProfileChoice, Session};
     use std::net::TcpListener;
     use std::sync::mpsc;
-    use padbridge_model::{self as model, Game, Light, Link, Pad, Phase, Profile, ProfileChoice, Session};
 
     struct Recorder(Mutex<mpsc::Sender<ControllerState>>, Mutex<mpsc::Sender<InputView>>);
     impl Sink for Recorder {

@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::play;
-use crate::state::{maps_of, AppState};
+use crate::state::{AppState, maps_of};
 
 static PLAY: LazyLock<play::Play> = LazyLock::new(play::Play::default);
 

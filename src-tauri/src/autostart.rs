@@ -7,10 +7,7 @@ use tauri::AppHandle;
 
 /// What login should start: the launcher when one started us, else this executable.
 pub fn launcher() -> PathBuf {
-    std::env::var_os("SMASHCRAFT_LAUNCHER")
-        .map(PathBuf::from)
-        .or_else(|| std::env::current_exe().ok())
-        .unwrap_or_else(|| "smashcraft".into())
+    std::env::var_os("SMASHCRAFT_LAUNCHER").map(PathBuf::from).or_else(|| std::env::current_exe().ok()).unwrap_or_else(|| "smashcraft".into())
 }
 
 pub fn desktop_entry(exec: &Path) -> String {
@@ -22,9 +19,7 @@ pub fn desktop_entry(exec: &Path) -> String {
 
 #[cfg(target_os = "linux")]
 fn entry_path() -> Option<PathBuf> {
-    let config = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))?;
+    let config = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))?;
     Some(config.join("autostart/smashcraft.desktop"))
 }
 

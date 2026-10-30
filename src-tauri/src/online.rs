@@ -9,7 +9,7 @@
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Child, ChildStderr, ChildStdin, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -76,6 +76,19 @@ fn signal_group(group: u32, signal: i32) -> bool {
     i32::try_from(group).is_ok_and(|group| unsafe { libc::kill(-group, signal) } == 0)
 }
 
+/// The program a run starts, with its arguments and the folder it runs in.
+pub struct Process {
+    program: OsString,
+    args: Vec<String>,
+    dir: PathBuf,
+}
+
+impl Process {
+    pub fn new(program: impl Into<OsString>, args: Vec<String>, dir: impl Into<PathBuf>) -> Self {
+        Self { program: program.into(), args, dir: dir.into() }
+    }
+}
+
 #[derive(Default)]
 pub struct Online {
     state: Mutex<OnlineState>,
@@ -95,13 +108,12 @@ impl Online {
     pub fn start(
         self: &Arc<Self>,
         mode: Mode,
-        program: OsString,
-        args: Vec<String>,
-        dir: &Path,
+        process: Process,
         log: Option<PathBuf>,
         shown: fn(&str) -> bool,
         changed: impl Fn(OnlineState) + Send + Sync + 'static,
     ) -> Result<(), String> {
+        let Process { program, args, dir } = process;
         let changed = Arc::new(changed);
         {
             let mut state = self.state.lock().unwrap();
@@ -111,7 +123,7 @@ impl Online {
             *state = OnlineState { available: true, running: true, mode: Some(mode), ..OnlineState::default() };
         }
         let mut command = Command::new(program);
-        command.args(&args).current_dir(dir).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        command.args(&args).current_dir(&dir).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         #[cfg(unix)]
         std::os::unix::process::CommandExt::process_group(&mut command, 0);
         let spawned = command.spawn();
@@ -250,12 +262,18 @@ mod tests {
         let (tx, rx) = mpsc::channel();
         let script = "echo 'Join code: ABCD-EFGH'; echo detail >&2; read line; echo \"got $line\"; echo 'In the match'";
         online
-            .start(Mode::Host, "sh".into(), vec!["-c".into(), script.into()], &std::env::temp_dir(), Some(log.clone()), |_| false, move |state| {
-                let _ = tx.send(state);
-            })
+            .start(
+                Mode::Host,
+                Process::new("sh", vec!["-c".into(), script.into()], std::env::temp_dir()),
+                Some(log.clone()),
+                |_| false,
+                move |state| {
+                    let _ = tx.send(state);
+                },
+            )
             .unwrap();
         assert_eq!(rx.recv_timeout(Duration::from_secs(10)).unwrap().lines, ["Join code: ABCD-EFGH"]);
-        assert!(online.start(Mode::Join, "sh".into(), vec![], &std::env::temp_dir(), None, |_| false, |_| {}).is_err(), "one run at a time");
+        assert!(online.start(Mode::Join, Process::new("sh", vec![], std::env::temp_dir()), None, |_| false, |_| {}).is_err(), "one run at a time");
         assert!(online.start_now());
         let done = wait_finished(&rx);
         assert_eq!(done.lines, ["Join code: ABCD-EFGH", "got start", "In the match"]);
@@ -273,7 +291,7 @@ mod tests {
         let (tx, rx) = mpsc::channel();
         let script = "echo 'net: hosting through sgp, round trip to it 183 ms' >&2; echo 'Smashcraft: join code sgp-7K2M-QX9D-R3TB-4'; echo detail >&2";
         online
-            .start(Mode::Host, "sh".into(), vec!["-c".into(), script.into()], &std::env::temp_dir(), None, shows_relay_round_trip, move |state| {
+            .start(Mode::Host, Process::new("sh", vec!["-c".into(), script.into()], std::env::temp_dir()), None, shows_relay_round_trip, move |state| {
                 let _ = tx.send(state);
             })
             .unwrap();
@@ -289,9 +307,15 @@ mod tests {
         let online = Arc::new(Online::default());
         let (tx, rx) = mpsc::channel();
         online
-            .start(Mode::Join, "sh".into(), vec!["-c".into(), "echo waiting; exec sleep 30".into()], &std::env::temp_dir(), None, |_| false, move |state| {
-                let _ = tx.send(state);
-            })
+            .start(
+                Mode::Join,
+                Process::new("sh", vec!["-c".into(), "echo waiting; exec sleep 30".into()], std::env::temp_dir()),
+                None,
+                |_| false,
+                move |state| {
+                    let _ = tx.send(state);
+                },
+            )
             .unwrap();
         assert_eq!(rx.recv_timeout(Duration::from_secs(10)).unwrap().lines, ["waiting"]);
         online.cancel();

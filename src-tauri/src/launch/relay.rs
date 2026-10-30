@@ -9,9 +9,9 @@ use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::{Arc, Mutex};
 
+use relay_agent::Link;
 use relay_agent::host::{AgentHost, HostConfig};
 use relay_agent::stop::StopHandle;
-use relay_agent::Link;
 use relay_proto::room::MapFacts;
 
 use super::lan_switch::LanSwitch;
@@ -31,7 +31,10 @@ pub fn relay_address() -> String {
 pub enum Role {
     Host(MapFacts),
     /// The room to join and the SHA-1 of this computer's copy of the map.
-    Join { room: u64, sha1: [u8; 20] },
+    Join {
+        room: u64,
+        sha1: [u8; 20],
+    },
 }
 
 /// The code a host gives their opponent: the relay's room id, as relay-agent prints it.
@@ -54,7 +57,8 @@ fn open(relay: SocketAddr, role: Role) -> io::Result<(Link, HostConfig)> {
         Role::Join { room, sha1 } => (Link::join(relay, room)?, None, Some(sha1)),
     };
     let announce_ports = ANNOUNCE_PORTS.to_vec();
-    let config = HostConfig { game_name: GAME_NAME.as_bytes().to_vec(), version: VERSION, listen_port: 0, announce_ports, host, expect_map_sha1, trace: None, tuning: Default::default() };
+    let config =
+        HostConfig { game_name: GAME_NAME.as_bytes().to_vec(), version: VERSION, listen_port: 0, announce_ports, host, expect_map_sha1, trace: None, tuning: Default::default() };
     Ok((link, config))
 }
 
@@ -291,12 +295,18 @@ mod tests {
         let relay = watcher.local_addr().unwrap().to_string();
         let unavailable = lan_switch::built_in().available().unwrap_err();
         let online = Arc::new(Relay::default());
-        for (mode, opted_in, problem) in [(Mode::Host, false, OPT_IN_FIRST), (Mode::Join, false, OPT_IN_FIRST), (Mode::Host, true, &unavailable), (Mode::Join, true, &unavailable)] {
+        for (mode, opted_in, problem) in [(Mode::Host, false, OPT_IN_FIRST), (Mode::Join, false, OPT_IN_FIRST), (Mode::Host, true, &unavailable), (Mode::Join, true, &unavailable)]
+        {
             let read = std::cell::Cell::new(false);
-            let result = online.start(mode, start(lan_switch::built_in(), &relay, opted_in), || {
-                read.set(true);
-                Ok(Role::Join { room: 1, sha1: [0; 20] })
-            }, |_| panic!("nothing runs"));
+            let result = online.start(
+                mode,
+                start(lan_switch::built_in(), &relay, opted_in),
+                || {
+                    read.set(true);
+                    Ok(Role::Join { room: 1, sha1: [0; 20] })
+                },
+                |_| panic!("nothing runs"),
+            );
             assert_eq!(result, Err(problem.to_owned()));
             assert!(!read.get(), "neither the map nor the code is read");
         }

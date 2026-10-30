@@ -1,7 +1,7 @@
 use tauri::State;
 
+use crate::state::{AppState, record_folders_of};
 use crate::{files, records};
-use crate::state::{record_folders_of, AppState};
 
 #[tauri::command]
 pub fn record_folders(state: State<AppState>) -> Vec<String> {

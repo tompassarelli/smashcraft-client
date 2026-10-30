@@ -60,11 +60,7 @@ pub fn read_parts(folder: &str, serial: u32, parts: u32) -> Result<Vec<String>, 
 /// A file name the client may keep: letters, digits, `-`, `_` and `.`, ending in `suffix`, no path.
 fn safe_name(name: &str, suffix: &str) -> Result<(), String> {
     let plain = name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.');
-    if plain && name.ends_with(suffix) && !name.starts_with('.') && name.len() <= 120 {
-        Ok(())
-    } else {
-        Err(format!("{name} isn't a name the client keeps"))
-    }
+    if plain && name.ends_with(suffix) && !name.starts_with('.') && name.len() <= 120 { Ok(()) } else { Err(format!("{name} isn't a name the client keeps")) }
 }
 
 /// The client's own folders: kept replays and the simulation of each version it has played.
@@ -110,8 +106,7 @@ impl Kept {
     /// Every version kept, sorted.
     pub fn sims(&self) -> Vec<String> {
         let Ok(entries) = std::fs::read_dir(&self.sims) else { return Vec::new() };
-        let mut versions: Vec<String> =
-            entries.flatten().filter_map(|entry| entry.file_name().to_string_lossy().strip_suffix(".js").map(str::to_owned)).collect();
+        let mut versions: Vec<String> = entries.flatten().filter_map(|entry| entry.file_name().to_string_lossy().strip_suffix(".js").map(str::to_owned)).collect();
         versions.sort();
         versions
     }

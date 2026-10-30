@@ -3,26 +3,26 @@
 //! from the Warcraft III Controller service over its local interface; the
 //! client starts the bundled service only when none answers.
 
-pub mod autostart;
-pub mod cli;
-pub mod files;
-pub mod commands;
-pub mod game;
-pub mod instance_lock;
-pub mod launch;
-pub mod link;
-pub mod lua32;
-pub mod mapsim;
-pub mod mpq;
-pub mod online;
-pub mod play;
-pub mod records;
-pub mod replays;
-pub mod settings;
-pub mod sink;
-pub mod state;
-pub mod tray;
-pub mod warcraft_replays;
+mod autostart;
+mod cli;
+mod commands;
+mod files;
+mod game;
+mod instance_lock;
+mod launch;
+mod link;
+mod lua32;
+mod mapsim;
+mod mpq;
+mod online;
+mod play;
+mod records;
+mod replays;
+mod settings;
+mod sink;
+mod state;
+mod tray;
+mod warcraft_replays;
 
 use std::sync::{Arc, Mutex};
 
@@ -31,8 +31,8 @@ use tauri_plugin_autostart::MacosLauncher;
 
 use link::Shared;
 use settings::Store;
-use sink::{add_tray, show_input, TauriSink};
-use state::{record_folders_of, show_window, AppState};
+use sink::{TauriSink, add_tray, show_input};
+use state::{AppState, record_folders_of, show_window};
 
 pub fn run() {
     if std::env::args().any(|arg| arg == "--check") {
@@ -77,7 +77,19 @@ pub fn run() {
                 let app = app.handle().clone();
                 move || instance_lock::listen(instance, move || show_window(&app))
             });
-            app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, online: Arc::default(), standalone: Arc::default(), relay: Arc::default(), log_dir, kept, mapsims, warcraft });
+            app.manage(AppState {
+                link: shared,
+                store,
+                settings: Mutex::new(settings),
+                history,
+                online: Arc::default(),
+                standalone: Arc::default(),
+                relay: Arc::default(),
+                log_dir,
+                kept,
+                mapsims,
+                warcraft,
+            });
             std::thread::spawn({
                 let (app, library) = (app.handle().clone(), warcraft_replays::Library::new(&app.path().app_data_dir()?));
                 move || warcraft_replays::watch(library, move || record_folders_of(&app.state::<AppState>().settings.lock().unwrap()))

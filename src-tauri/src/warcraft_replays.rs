@@ -42,9 +42,8 @@ pub struct WarcraftGame {
 /// account's, then the offline one, those that exist.
 pub fn replay_folders(custom_map_data: &str) -> Vec<PathBuf> {
     let Some(warcraft) = Path::new(custom_map_data).parent() else { return Vec::new() };
-    let mut accounts: Vec<PathBuf> = std::fs::read_dir(warcraft.join("BattleNet"))
-        .map(|entries| entries.flatten().map(|entry| entry.path().join("Replays")).collect())
-        .unwrap_or_default();
+    let mut accounts: Vec<PathBuf> =
+        std::fs::read_dir(warcraft.join("BattleNet")).map(|entries| entries.flatten().map(|entry| entry.path().join("Replays")).collect()).unwrap_or_default();
     accounts.sort();
     accounts.push(warcraft.join("Replays"));
     accounts.into_iter().filter(|dir| dir.is_dir()).collect()
@@ -85,9 +84,7 @@ fn records_between(folder: &str, from: u64, to: u64) -> Vec<String> {
         .flatten()
         .filter(|entry| {
             let name = entry.file_name().to_string_lossy().into_owned();
-            name.strip_prefix("smashcraft-match-")
-                .and_then(|rest| rest.strip_suffix(".txt"))
-                .is_some_and(|serial| !serial.is_empty() && serial.bytes().all(|b| b.is_ascii_digit()))
+            name.strip_prefix("smashcraft-match-").and_then(|rest| rest.strip_suffix(".txt")).is_some_and(|serial| !serial.is_empty() && serial.bytes().all(|b| b.is_ascii_digit()))
         })
         .filter(|entry| modified_ms(std::fs::metadata(entry.path())).is_some_and(|at| (from..=to).contains(&at)))
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
@@ -133,15 +130,7 @@ impl Library {
         }
         let file = format!("warcraft-{}-{}.w3g", stamp(ended), &hash[..12]);
         files::write_atomic(&self.dir.join(&file), &bytes)?;
-        let game = WarcraftGame {
-            file,
-            hash,
-            started,
-            ended,
-            folder: folder.to_owned(),
-            replays: replays.to_string_lossy().into_owned(),
-            records,
-        };
+        let game = WarcraftGame { file, hash, started, ended, folder: folder.to_owned(), replays: replays.to_string_lossy().into_owned(), records };
         games.push(game.clone());
         files::write_atomic(&self.index(), serde_json::to_string_pretty(&games).map_err(|e| e.to_string())?)?;
         Ok(Some(game))
@@ -230,7 +219,7 @@ mod tests {
         write_at(&records.join("smashcraft-match-index.pld"), b"index", end - 2_000);
         write_at(&replays.join(LAST_REPLAY), &w3g(10 * MINUTE, b"game one"), end);
 
-        assert_eq!(replay_folders(&folder), [replays.clone()]);
+        assert_eq!(replay_folders(&folder), std::slice::from_ref(&replays));
         let game = library.keep_last(&folder, &replays).unwrap().unwrap();
         assert!(game.file.starts_with("warcraft-20261007-023258-") && game.file.ends_with(".w3g"));
         assert_eq!(game.records, ["smashcraft-match-2.txt", "smashcraft-match-3.txt"]);

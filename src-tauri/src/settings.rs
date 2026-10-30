@@ -36,10 +36,7 @@ impl Store {
 
     /// Missing or unreadable settings start from the defaults.
     pub fn load(&self) -> Settings {
-        std::fs::read_to_string(&self.path)
-            .ok()
-            .and_then(|text| serde_json::from_str(&text).ok())
-            .unwrap_or_default()
+        std::fs::read_to_string(&self.path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default()
     }
 
     pub fn save(&self, settings: &Settings) -> Result<(), String> {
@@ -64,12 +61,7 @@ mod tests {
             menu_page: Some(true),
             smashcraft_servers: Some(true),
         };
-        assert!(matches!(
-            settings.greeting().as_slice(),
-            [
-                ClientMessage::Profile(ProfileChoice::AnyMap)
-            ]
-        ));
+        assert!(matches!(settings.greeting().as_slice(), [ClientMessage::Profile(ProfileChoice::AnyMap)]));
         store.save(&settings).unwrap();
         assert_eq!(store.load(), settings);
         std::fs::remove_dir_all(dir).unwrap();

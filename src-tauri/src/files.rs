@@ -42,4 +42,3 @@ pub fn write_atomic(path: &Path, contents: impl AsRef<[u8]>) -> Result<(), Strin
     std::fs::write(&tmp, contents).map_err(|e| e.to_string())?;
     std::fs::rename(&tmp, path).map_err(|e| e.to_string())
 }
-

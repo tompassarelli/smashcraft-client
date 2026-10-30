@@ -95,7 +95,11 @@ fn facts(file: &[u8], path: &str) -> Result<MapFacts, String> {
     let flags = info.int()?;
     for (size, count) in ENVIRONMENT {
         for _ in 0..count {
-            if size == 0 { info.string()? } else { info.take(size.into())?; }
+            if size == 0 {
+                info.string()?
+            } else {
+                info.take(size.into())?;
+            }
         }
     }
     let mut players = Vec::new();

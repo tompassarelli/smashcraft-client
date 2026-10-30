@@ -46,9 +46,7 @@ fn custom_map_data(documents: &Path) -> PathBuf {
 
 /// The subfolders of `dir`, sorted; none when it can't be read.
 fn subfolders(dir: &Path) -> Vec<PathBuf> {
-    let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
-        .map(|entries| entries.flatten().map(|entry| entry.path()).filter(|path| path.is_dir()).collect())
-        .unwrap_or_default();
+    let mut found: Vec<PathBuf> = std::fs::read_dir(dir).map(|entries| entries.flatten().map(|entry| entry.path()).filter(|path| path.is_dir()).collect()).unwrap_or_default();
     found.sort();
     found
 }
@@ -101,10 +99,7 @@ impl History {
 
     /// The stored JSON, or `null` before the first save.
     pub fn load(&self) -> serde_json::Value {
-        std::fs::read_to_string(&self.path)
-            .ok()
-            .and_then(|text| serde_json::from_str(&text).ok())
-            .unwrap_or(serde_json::Value::Null)
+        std::fs::read_to_string(&self.path).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or(serde_json::Value::Null)
     }
 
     pub fn save(&self, value: &serde_json::Value) -> Result<(), String> {

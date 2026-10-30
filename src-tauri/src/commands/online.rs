@@ -5,7 +5,7 @@ use crate::game::map_facts;
 use crate::launch::{lan_switch, relay};
 use crate::online;
 use crate::play;
-use crate::state::{maps_of, AppState};
+use crate::state::{AppState, maps_of};
 
 #[tauri::command]
 pub fn online_state(state: State<AppState>) -> online::OnlineState {
@@ -28,9 +28,15 @@ fn start_online(app: AppHandle, state: &AppState, mode: online::Mode, code: Opti
     let repair = state.settings.lock().unwrap().menu_page == Some(true);
     let bun = std::env::var_os("BUN").unwrap_or_else(|| "bun".into());
     let log = state.log_dir.as_ref().map(|dir| dir.join("online.log"));
-    state.online.start(mode, bun, online::online_args(mode, code, repair), &dir, log, |_| false, move |snapshot| {
-        let _ = app.emit("online", snapshot);
-    })?;
+    state.online.start(
+        mode,
+        online::Process::new(bun, online::online_args(mode, code, repair), dir),
+        log,
+        |_| false,
+        move |snapshot| {
+            let _ = app.emit("online", snapshot);
+        },
+    )?;
     Ok(state.online.state())
 }
 
@@ -100,7 +106,7 @@ fn start_standalone(app: AppHandle, state: &AppState, mode: online::Mode, code: 
     let dir = play::tools_dir().ok_or("Online play needs Smashcraft's tools: set SMASHCRAFT_TS to their ts folder.")?;
     let bun = std::env::var_os("BUN").unwrap_or_else(|| "bun".into());
     let log = state.log_dir.as_ref().map(|dir| dir.join("standalone.log"));
-    state.standalone.start(mode, bun, online::standalone_args(mode, code), &dir, log, online::shows_relay_round_trip, move |snapshot| {
+    state.standalone.start(mode, online::Process::new(bun, online::standalone_args(mode, code), dir), log, online::shows_relay_round_trip, move |snapshot| {
         let _ = app.emit("standalone", snapshot);
     })?;
     Ok(state.standalone.state())

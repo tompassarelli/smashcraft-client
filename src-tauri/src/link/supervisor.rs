@@ -30,13 +30,7 @@ pub struct Supervise {
 
 impl Supervise {
     pub fn new(wanted: bool) -> Self {
-        Self {
-            wanted,
-            link: if wanted { Link::Starting } else { Link::Off },
-            failed: false,
-            started_at: None,
-            attempts: 0,
-        }
+        Self { wanted, link: if wanted { Link::Starting } else { Link::Off }, failed: false, started_at: None, attempts: 0 }
     }
 
     pub fn connected(&mut self) {
@@ -102,12 +96,7 @@ impl ControllerState {
             view.problem = Some(START_FAILED.to_owned());
             view.overall = Light::Red;
         }
-        Self {
-            link: sup.link,
-            wanted: sup.wanted,
-            view,
-            snapshot: snapshot.clone(),
-        }
+        Self { link: sup.link, wanted: sup.wanted, view, snapshot: snapshot.clone() }
     }
 }
 

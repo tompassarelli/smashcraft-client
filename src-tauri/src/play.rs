@@ -5,7 +5,7 @@ use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 
 const MAPS_SUBFOLDER: &str = "00-Smashcraft";
@@ -161,7 +161,7 @@ impl Play {
             return Err("Play is already getting you into a match.".to_owned());
         }
         match route {
-            Route::Wisp(run) => return self.follow(run, changed),
+            Route::Wisp(run) => self.follow(run, changed),
             Route::InMatch => {
                 let mut lines = vec![IN_MATCH.to_owned()];
                 if let Err(e) = raise() {
@@ -341,7 +341,16 @@ mod tests {
         let map = Path::new("/maps/Smashcraft 0.3-dev.470.w3x");
         let route = route_for(map, &setup(Some(tools.clone()), true));
         assert_eq!(route, Route::InMatch);
-        play.go(map, route, || Ok(raised.set(raised.get() + 1)), changed.clone()).unwrap();
+        play.go(
+            map,
+            route,
+            || {
+                raised.set(raised.get() + 1);
+                Ok(())
+            },
+            changed.clone(),
+        )
+        .unwrap();
         let state = rx.recv().unwrap();
         assert_eq!((state.lines, state.running, state.finished, raised.get()), (vec![IN_MATCH.to_owned()], false, None, 1));
         assert_eq!(play.warcraft_pid(), None);

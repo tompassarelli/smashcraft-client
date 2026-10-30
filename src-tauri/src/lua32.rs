@@ -44,11 +44,7 @@ impl Lua {
     fn take_text(&self) -> String {
         let mut length = 0usize;
         let text = unsafe { lua_tolstring(self.state, -1, &mut length) };
-        let result = if text.is_null() {
-            String::new()
-        } else {
-            String::from_utf8_lossy(unsafe { std::slice::from_raw_parts(text.cast::<u8>(), length) }).into_owned()
-        };
+        let result = if text.is_null() { String::new() } else { String::from_utf8_lossy(unsafe { std::slice::from_raw_parts(text.cast::<u8>(), length) }).into_owned() };
         unsafe { lua_settop(self.state, 0) };
         result
     }

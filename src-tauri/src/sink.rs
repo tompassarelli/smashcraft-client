@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
+use padbridge_model::{InputView, Light};
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter};
-use padbridge_model::{InputView, Light};
 
 use crate::link::{self, ControllerState};
 use crate::state::show_window;
