@@ -7,4 +7,7 @@ in pkgs.mkShell {
   buildInputs = runtime.paths ++ (map (p: p.dev or p) runtime.paths);
   # The tray library is loaded at run time.
   LD_LIBRARY_PATH = "${runtime}/lib";
+  shellHook = ''
+    if command -v north >/dev/null; then north target-seed || true; fi
+  '';
 }
