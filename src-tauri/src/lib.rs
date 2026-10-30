@@ -20,6 +20,7 @@ mod play;
 mod records;
 mod replays;
 mod settings;
+mod sims;
 mod sink;
 mod state;
 mod tray;

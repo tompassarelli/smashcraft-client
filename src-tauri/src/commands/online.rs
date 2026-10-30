@@ -24,9 +24,9 @@ pub fn decline_menu_page(state: State<AppState>) -> Result<(), String> {
 }
 
 fn start_online(app: AppHandle, state: &AppState, mode: online::Mode, code: Option<&str>) -> Result<online::OnlineState, String> {
-    let dir = play::tools_dir().ok_or("Online play needs Smashcraft's tools: set SMASHCRAFT_TS to their ts folder.")?;
+    let dir = online::tools_dir().ok_or("Online play needs Smashcraft's tools: set SMASHCRAFT_TS to their ts folder.")?;
     let repair = state.settings.lock().unwrap().menu_page == Some(true);
-    let bun = std::env::var_os("BUN").unwrap_or_else(|| "bun".into());
+    let bun = online::bun();
     let log = state.log_dir.as_ref().map(|dir| dir.join("online.log"));
     state.online.start(
         mode,
@@ -103,8 +103,8 @@ pub fn standalone_state(state: State<AppState>) -> online::OnlineState {
 }
 
 fn start_standalone(app: AppHandle, state: &AppState, mode: online::Mode, code: Option<&str>) -> Result<online::OnlineState, String> {
-    let dir = play::tools_dir().ok_or("Online play needs Smashcraft's tools: set SMASHCRAFT_TS to their ts folder.")?;
-    let bun = std::env::var_os("BUN").unwrap_or_else(|| "bun".into());
+    let dir = online::tools_dir().ok_or("Online play needs Smashcraft's tools: set SMASHCRAFT_TS to their ts folder.")?;
+    let bun = online::bun();
     let log = state.log_dir.as_ref().map(|dir| dir.join("standalone.log"));
     state.standalone.start(mode, online::Process::new(bun, online::standalone_args(mode, code), dir), log, online::shows_relay_round_trip, move |snapshot| {
         let _ = app.emit("standalone", snapshot);

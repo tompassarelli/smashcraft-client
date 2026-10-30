@@ -13,6 +13,7 @@ use std::sync::Mutex;
 
 use crate::files;
 use crate::lua32::Lua;
+use crate::sims::SimStore;
 
 /// Loads a map's bundle without starting the map, adds the viewer's modules
 /// and calls the viewer driver. war3map.lua holds the bundle as a long string
@@ -74,7 +75,7 @@ struct Session {
 /// The maps found so far and the viewers open.
 pub struct MapSims {
     /// Where a version's war3map.lua is kept once found.
-    kept: PathBuf,
+    kept: SimStore,
     /// Each map read: its modified time and length, and the version it holds.
     scanned: Mutex<HashMap<PathBuf, Scanned>>,
     sessions: Mutex<HashMap<u32, Mutex<Session>>>,
@@ -82,13 +83,13 @@ pub struct MapSims {
 }
 
 impl MapSims {
-    pub fn new(data: &Path) -> Self {
-        Self { kept: data.join("sims"), scanned: Mutex::default(), sessions: Mutex::default(), next: Mutex::new(1) }
+    pub fn new(kept: SimStore) -> Self {
+        Self { kept, scanned: Mutex::default(), sessions: Mutex::default(), next: Mutex::new(1) }
     }
 
-    fn kept_path(&self, version: &str) -> Option<PathBuf> {
+    fn kept_name(version: &str) -> Option<String> {
         let plain = version.len() == 12 && version.bytes().all(|b| b.is_ascii_hexdigit());
-        plain.then(|| self.kept.join(format!("{version}.lua")))
+        plain.then(|| format!("{version}.lua"))
     }
 
     /// Reads every Smashcraft map in `folders` not read since it last changed, keeping each version's war3map.lua.
@@ -105,19 +106,16 @@ impl MapSims {
             }
             let version = war3map_lua(&path).ok().and_then(|war3| {
                 let version = stamped_version(&war3)?;
-                let kept = self.kept_path(&version)?;
-                if !kept.is_file() {
-                    let _ = std::fs::create_dir_all(&self.kept);
-                    let _ = std::fs::write(&kept, &war3);
+                let name = Self::kept_name(&version)?;
+                if !self.kept.file(&name).is_file() {
+                    let _ = self.kept.write(&name, &war3);
                 }
                 Some(version)
             });
             scanned.insert(path, (stamp, version));
         }
         let mut versions: Vec<String> = scanned.values().filter_map(|(_, v)| v.clone()).collect();
-        if let Ok(entries) = std::fs::read_dir(&self.kept) {
-            versions.extend(entries.flatten().filter_map(|e| e.file_name().to_string_lossy().strip_suffix(".lua").map(str::to_owned)));
-        }
+        versions.extend(self.kept.stems(".lua"));
         versions.sort();
         versions.dedup();
         versions
@@ -125,11 +123,11 @@ impl MapSims {
 
     /// Opens `replay` in the map of `version` with the viewer's modules: its id and the driver's answer.
     pub fn open(&self, folders: &[PathBuf], version: &str, replay: &str, viewer: &str) -> Result<(u32, String), String> {
-        let kept = self.kept_path(version).ok_or("not a version")?;
-        if !kept.is_file() {
+        let name = Self::kept_name(version).ok_or("not a version")?;
+        if !self.kept.file(&name).is_file() {
             self.scan(folders);
         }
-        let war3 = std::fs::read_to_string(&kept).map_err(|_| format!("no map of version {version} was found"))?;
+        let war3 = self.kept.read(&name).ok_or_else(|| format!("no map of version {version} was found"))?;
         let lua = Lua::new()?;
         lua.run(GLUE, "glue")?;
         lua.call(c"smashcraft_load_map", &[&war3])?;
@@ -199,7 +197,7 @@ end,
         let dir = std::env::temp_dir().join(format!("smashcraft-mapsim-{}", std::process::id()));
         let maps = dir.join("Maps/Download");
         std::fs::create_dir_all(&maps).unwrap();
-        let sims = MapSims::new(&dir.join("data"));
+        let sims = MapSims::new(SimStore::new(&dir.join("data")));
         std::fs::create_dir_all(dir.join("data/sims")).unwrap();
         std::fs::write(dir.join("data/sims/0123456789ab.lua"), war3).unwrap();
         assert_eq!(stamped_version(war3).as_deref(), Some("0123456789ab"));

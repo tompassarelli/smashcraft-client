@@ -27,6 +27,12 @@ responsibility = "File helpers the stores share: atomic writes, modified times, 
 may_use = []
 
 [[module]]
+name = "sims"
+paths = ["src-tauri/src/sims.rs"]
+responsibility = "The client's sims folder: each version's war3map.lua and viewer simulation."
+may_use = ["files"]
+
+[[module]]
 name = "link"
 paths = ["src-tauri/src/link/**", "src-tauri/src/link.rs"]
 responsibility = "Start and watch padbridge and the map plug-in; TCP client of the padbridge protocol."
@@ -37,7 +43,7 @@ name = "game-files"
 paths = ["src-tauri/src/game/**", "src-tauri/src/records.rs", "src-tauri/src/replays.rs", "src-tauri/src/warcraft_replays.rs",
          "src-tauri/src/mapsim.rs", "src-tauri/src/mapsim.lua", "src-tauri/src/mpq.rs", "src-tauri/src/lua32.rs"]
 responsibility = "Read the map's records, replays and Lua through the client kit contract; keep LastReplay.w3g copies."
-may_use = ["files"]
+may_use = ["files", "sims"]
 
 [[module]]
 name = "launch"
@@ -55,7 +61,7 @@ may_use = []
 name = "app"
 paths = ["src-tauri/src/**", "src-tauri/build.rs"]
 responsibility = "Tauri setup, tray, window, settings, single-instance lock and command handlers grouped by page."
-may_use = ["link", "game-files", "launch", "servers", "files"]
+may_use = ["link", "game-files", "launch", "servers", "files", "sims"]
 
 [[module]]
 name = "ui-generated"

@@ -1,4 +1,4 @@
-use crate::{link, mapsim, play, records};
+use crate::{link, mapsim, online, play, records};
 
 pub fn check() {
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], link::service_port()));
@@ -14,6 +14,6 @@ pub fn check() {
     println!("maps folders: {maps:?}");
     match play::current_map(&maps) {
         None => println!("play: no Smashcraft map in Maps/00-Smashcraft"),
-        Some(map) => println!("play: {} by {:?}", map.display(), play::route_for(&map, &play::Setup::from_env(false))),
+        Some(map) => println!("play: {} by {:?}", map.display(), play::route_for(&map, &play::Setup::from_env(false, online::tools_dir()))),
     }
 }

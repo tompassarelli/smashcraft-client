@@ -6,6 +6,7 @@
 //! (smashcraft-client:ui/src/replays.ts); this side only reads and keeps files.
 
 use crate::files::{self, TextFile};
+use crate::sims::SimStore;
 use std::path::{Path, PathBuf};
 
 const PREFIX: &str = "smashcraft-replay-";
@@ -63,15 +64,15 @@ fn safe_name(name: &str, suffix: &str) -> Result<(), String> {
     if plain && name.ends_with(suffix) && !name.starts_with('.') && name.len() <= 120 { Ok(()) } else { Err(format!("{name} isn't a name the client keeps")) }
 }
 
-/// The client's own folders: kept replays and the simulation of each version it has played.
-pub struct Kept {
+/// The client's kept replays, and the simulation of each version it has played, which watching a replay needs.
+pub struct SharedReplays {
     pub replays: PathBuf,
-    sims: PathBuf,
+    sims: SimStore,
 }
 
-impl Kept {
-    pub fn new(data: &Path) -> Self {
-        Self { replays: data.join("replays"), sims: data.join("sims") }
+impl SharedReplays {
+    pub fn new(data: &Path, sims: SimStore) -> Self {
+        Self { replays: data.join("replays"), sims }
     }
 
     fn write(dir: &Path, name: &str, text: &str) -> Result<PathBuf, String> {
@@ -90,25 +91,22 @@ impl Kept {
     pub fn keep_sim(&self, version: &str, code: &str) -> Result<(), String> {
         let name = format!("{version}.js");
         safe_name(&name, ".js")?;
-        if self.sims.join(&name).is_file() {
+        if self.sims.file(&name).is_file() {
             return Ok(());
         }
-        Self::write(&self.sims, &name, code).map(|_| ())
+        self.sims.write(&name, code)
     }
 
     /// A kept version's simulation.
     pub fn sim(&self, version: &str) -> Option<String> {
         let name = format!("{version}.js");
         safe_name(&name, ".js").ok()?;
-        std::fs::read_to_string(self.sims.join(name)).ok()
+        self.sims.read(&name)
     }
 
     /// Every version kept, sorted.
     pub fn sims(&self) -> Vec<String> {
-        let Ok(entries) = std::fs::read_dir(&self.sims) else { return Vec::new() };
-        let mut versions: Vec<String> = entries.flatten().filter_map(|entry| entry.file_name().to_string_lossy().strip_suffix(".js").map(str::to_owned)).collect();
-        versions.sort();
-        versions
+        self.sims.stems(".js")
     }
 }
 
@@ -126,7 +124,8 @@ mod tests {
     #[test]
     fn lists_manifests_beside_parts_and_every_kept_replay() {
         let folder = temp("folder");
-        let kept = Kept::new(&temp("data"));
+        let data = temp("data");
+        let kept = SharedReplays::new(&data, SimStore::new(&data));
         for name in ["smashcraft-replay-3.txt", "smashcraft-replay-3-1.txt", "smashcraft-replay-3-2.txt", "smashcraft-match-3.txt"] {
             std::fs::write(folder.join(name), name).unwrap();
         }
@@ -154,7 +153,7 @@ mod tests {
     #[test]
     fn whatever_name_it_is_given_the_client_writes_only_inside_its_own_folders_and_keeps_each_version_once_500_seeded_names() {
         let data = temp("kept");
-        let kept = Kept::new(&data);
+        let kept = SharedReplays::new(&data, SimStore::new(&data));
         let inner = kept.replays.join("a");
         std::fs::create_dir_all(&inner).unwrap();
         let mut next = random(0x2545_f491_4f6c_dd1d);

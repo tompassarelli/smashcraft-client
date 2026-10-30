@@ -16,7 +16,7 @@ pub struct AppState {
     pub standalone: Arc<online::Online>,
     pub relay: Arc<crate::launch::relay::Relay>,
     pub log_dir: Option<std::path::PathBuf>,
-    pub kept: replays::Kept,
+    pub kept: replays::SharedReplays,
     pub mapsims: mapsim::MapSims,
     pub warcraft: warcraft_replays::Library,
 }

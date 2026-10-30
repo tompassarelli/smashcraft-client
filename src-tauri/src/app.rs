@@ -9,6 +9,7 @@ use tauri::{App, Manager, Window, WindowEvent};
 
 use crate::link::{self, Shared};
 use crate::settings::Store;
+use crate::sims::SimStore;
 use crate::sink::{TauriSink, add_tray, show_input};
 use crate::state::{AppState, show_window};
 use crate::{instance_lock, mapsim, records, replays, warcraft_replays};
@@ -16,8 +17,10 @@ use crate::{instance_lock, mapsim, records, replays, warcraft_replays};
 pub fn setup(app: &mut App, instance: TcpListener, hidden: bool) -> Result<(), Box<dyn std::error::Error>> {
     let store = Store::new(&app.path().app_config_dir()?);
     let history = records::History::new(&app.path().app_data_dir()?);
-    let kept = replays::Kept::new(&app.path().app_data_dir()?);
-    let mapsims = mapsim::MapSims::new(&app.path().app_data_dir()?);
+    let data = app.path().app_data_dir()?;
+    let sims = SimStore::new(&data);
+    let kept = replays::SharedReplays::new(&data, sims.clone());
+    let mapsims = mapsim::MapSims::new(sims);
     let warcraft = warcraft_replays::Library::new(&app.path().app_data_dir()?);
     let settings = store.load();
     let shared = Shared::new(settings.controller_on);

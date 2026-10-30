@@ -46,7 +46,12 @@ pub fn current_map(maps_folders: &[PathBuf]) -> Option<PathBuf> {
 
 pub const IN_MATCH: &str = "You're in a match: switch to the Warcraft III window";
 const COULDNT_START: &str = "Play couldn't start Warcraft III.";
-const SHORTCUT_NEXT: &str = "Battle.net is starting. Sign in, start Warcraft III from it and press Play again. To have Play host the match too, set SMASHCRAFT_TS to the ts folder of a Smashcraft checkout.";
+fn shortcut_next() -> String {
+    format!(
+        "Battle.net is starting. Sign in, start Warcraft III from it and press Play again. To have Play host the match too, set {} to the ts folder of a Smashcraft checkout.",
+        crate::online::TOOLS_VARIABLE
+    )
+}
 /// How long the output of a finished run has to drain when something else still holds its pipes open.
 const DRAIN: Duration = Duration::from_secs(2);
 
@@ -97,14 +102,8 @@ pub struct Setup {
 }
 
 impl Setup {
-    pub fn from_env(in_match: bool) -> Self {
-        Self {
-            program: std::env::var_os("WARCRAFT_III").filter(|p| !p.is_empty()),
-            tools: tools_dir(),
-            bun: std::env::var_os("BUN").unwrap_or_else(|| "bun".into()),
-            windows: cfg!(windows),
-            in_match,
-        }
+    pub fn from_env(in_match: bool, tools: Option<PathBuf>) -> Self {
+        Self { program: std::env::var_os("WARCRAFT_III").filter(|p| !p.is_empty()), tools, bun: crate::online::bun(), windows: cfg!(windows), in_match }
     }
 }
 
@@ -150,9 +149,9 @@ impl Play {
         *self.warcraft.lock().unwrap()
     }
 
-    pub fn start(self: &Arc<Self>, maps_folders: &[PathBuf], in_match: bool, changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
+    pub fn start(self: &Arc<Self>, maps_folders: &[PathBuf], in_match: bool, tools: Option<PathBuf>, changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
         let map = current_map(maps_folders).ok_or("No Smashcraft map is in Warcraft III's Maps/00-Smashcraft folder yet.")?;
-        let route = route_for(&map, &Setup::from_env(in_match));
+        let route = route_for(&map, &Setup::from_env(in_match, tools));
         self.go(&map, route, crate::launch::window::raise_warcraft, Arc::new(changed))
     }
 
@@ -177,7 +176,7 @@ impl Play {
             Route::Shortcut => {
                 let mut lines = vec![format!("Starting the Steam shortcut \"{}\"…", crate::launch::steam::SHORTCUT)];
                 let started = crate::launch::steam::start_shortcut();
-                lines.push(started.clone().map_or_else(|e| format!("Steam couldn't start it: {e}"), |()| SHORTCUT_NEXT.to_owned()));
+                lines.push(started.clone().map_or_else(|e| format!("Steam couldn't start it: {e}"), |()| shortcut_next()));
                 self.finish(lines, Some(started.is_ok()), &changed);
                 started.map_err(|_| COULDNT_START.to_owned())
             }
@@ -262,11 +261,6 @@ impl Play {
         });
         Ok(())
     }
-}
-
-pub fn tools_dir() -> Option<PathBuf> {
-    let dir = PathBuf::from(std::env::var_os("SMASHCRAFT_TS")?);
-    dir.join("package.json").exists().then_some(dir)
 }
 
 #[cfg(test)]
