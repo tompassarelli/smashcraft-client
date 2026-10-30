@@ -14,10 +14,6 @@ pub struct Settings {
     /// The CustomMapData folders match records are read from; the ones found on this computer until the player sets them.
     #[serde(alias = "record_folders")]
     pub custom_map_data_folders: Option<Vec<String>>,
-    /// Whether the player agreed to add Smashcraft's page to Warcraft III's menus (online play); none until asked.
-    pub menu_page: Option<bool>,
-    /// Whether the player opted in to Smashcraft Servers; none until they choose.
-    pub smashcraft_servers: Option<bool>,
 }
 
 impl Settings {
@@ -55,13 +51,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("smashcraft-settings-{}", std::process::id()));
         let store = Store::new(&dir);
         assert_eq!(store.load(), Settings::default());
-        let settings = Settings {
-            controller_on: true,
-            profile: ProfileChoice::AnyMap,
-            custom_map_data_folders: Some(vec!["/games/CustomMapData".into()]),
-            menu_page: Some(true),
-            smashcraft_servers: Some(true),
-        };
+        let settings = Settings { controller_on: true, profile: ProfileChoice::AnyMap, custom_map_data_folders: Some(vec!["/games/CustomMapData".into()]) };
         assert!(matches!(settings.reconnect_messages().as_slice(), [ClientMessage::Profile(ProfileChoice::AnyMap)]));
         store.save(&settings).unwrap();
         assert_eq!(store.load(), settings);

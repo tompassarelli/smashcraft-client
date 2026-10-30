@@ -52,20 +52,7 @@ pub fn setup(app: &mut App, instance: TcpListener, hidden: bool) -> Result<(), B
         let (app, library) = (app.handle().clone(), warcraft.clone());
         move || warcraft_replays::watch(library, move || app.state::<AppState>().folders())
     });
-    app.manage(AppState {
-        link: shared,
-        store,
-        settings: Mutex::new(settings),
-        history,
-        play: Arc::default(),
-        online: Arc::default(),
-        standalone: Arc::default(),
-        relay: Arc::default(),
-        log_dir,
-        kept,
-        mapsims,
-        warcraft,
-    });
+    app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, play: Arc::default(), standalone: Arc::default(), log_dir, kept, mapsims, warcraft });
     if !hidden {
         show_window(app.handle());
     }

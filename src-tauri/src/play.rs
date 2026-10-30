@@ -134,7 +134,6 @@ type Changed = Arc<dyn Fn(PlayState) + Send + Sync>;
 #[derive(Default)]
 pub struct Play {
     state: Mutex<PlayState>,
-    warcraft: Mutex<Option<u32>>,
 }
 
 impl Play {
@@ -142,11 +141,6 @@ impl Play {
         let mut state = self.state.lock().unwrap().clone();
         state.available = current_map(maps_folders).is_some();
         state
-    }
-
-    /// The Warcraft III that Play started, while it runs.
-    pub fn warcraft_pid(&self) -> Option<u32> {
-        *self.warcraft.lock().unwrap()
     }
 
     pub fn start(self: &Arc<Self>, maps_folders: &[PathBuf], in_match: bool, tools: Option<PathBuf>, changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
@@ -185,11 +179,8 @@ impl Play {
                 let spawned = Command::new(&launch.program).args(&launch.args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn();
                 match spawned {
                     Ok(mut child) => {
-                        *self.warcraft.lock().unwrap() = Some(child.id());
-                        let play = Arc::clone(self);
                         std::thread::spawn(move || {
                             let _ = child.wait();
-                            *play.warcraft.lock().unwrap() = None;
                         });
                         lines.push("Warcraft III is starting the match.".to_owned());
                         self.finish(lines, Some(true), &changed);
@@ -350,7 +341,6 @@ mod tests {
         .unwrap();
         let state = rx.recv().unwrap();
         assert_eq!((state.lines, state.running, state.finished, raised.get()), (vec![IN_MATCH.to_owned()], false, None, 1));
-        assert_eq!(play.warcraft_pid(), None);
         play.go(map, Route::InMatch, || Err("there is no Warcraft III window".to_owned()), changed).unwrap();
         assert_eq!(rx.recv().unwrap().lines, [IN_MATCH, "Couldn't bring it forward: there is no Warcraft III window"]);
         std::fs::remove_dir_all(tools).unwrap();

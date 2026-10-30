@@ -30,13 +30,11 @@ Melee, and the same principles cover both.
   a game's memory.
 - **Play fair.** No DRM bypass, no Battle.net emulation, no cheats, and nothing
   that touches other players or Blizzard's services.
-- **One opt-in change.** Patch 3.0 removed LAN, so if you turn on
-  Smashcraft Servers beside Battle.net, the client turns Warcraft III's LAN
-  connection back on while it runs, as W3Champions does, and nothing else.
-  Blizzard has not approved it, and the opt-in says so. Without it the client
-  never touches the game. Its internals stay in a private repository and ship
-  compiled; after a Warcraft patch it may stop working, Smashcraft Servers
-  then shows unavailable, and Battle.net play is unaffected.
+- **Hands off a running game.** The client never turns on Warcraft III's LAN
+  connection, writes into a running game or drives Warcraft III to host or join
+  online games. Online play in Warcraft III itself is Battle.net's, inside
+  Warcraft; Smashcraft's online play is its own window over Wisp's relay,
+  with Warcraft III closed (smashcraft-client#28, 2026-10-31).
 - **Original work.** Our own code only. No code from AGPL projects such as
   Warsmash, and "Warcraft" stays out of our product names.
 
@@ -137,10 +135,11 @@ records tests replay (AGENTS.md).
 
 ## Online
 
-The Online page opens on "Smashcraft window": Host runs `bun wisp play
---standalone --host --relay nearest` in Smashcraft's tools (`SMASHCRAFT_TS`,
-the way Online's other runs start), which pings the relay regions, opens a
-room on the nearest and shows its code and region on the page; Join runs
+The Online page offers one way to play online, Smashcraft's own window over
+Wisp's relay; it never starts or touches Warcraft III. Host runs `bun wisp play
+--standalone --host --relay nearest` in Smashcraft's tools (`SMASHCRAFT_TS`, a
+Smashcraft checkout's ts/ with its dependencies installed), which pings the
+relay regions, opens a room on the nearest and shows its code and region on the page; Join runs
 `bun wisp play --standalone --join CODE` with the code the host gave. Both
 play in Wisp's own window, without Warcraft III (wisp:docs/play.md, "Host and
 join"; smashcraft:docs/commands/online.md). The run's output lines and the
@@ -149,34 +148,6 @@ round trip to the relay show on the page; its other error output goes to
 window. `WISP_RELAYS="name=ADDRESS:PORT"` adds a relay region, which a run
 started from the client's environment uses. The runner is
 src-tauri/src/online.rs and the page ui/src/pages/online.ts.
-
-Beside it the page offers Battle.net: it hosts a private Battle.net game and shows its join code, or
-joins one by code (smashcraft:docs/design/client.md, "Direct play"). It runs
-`bun wisp online host` or `join CODE` in Smashcraft's tools (`SMASHCRAFT_TS`,
-a Smashcraft checkout's ts/ with its dependencies installed) and shows their
-output lines; their error output goes to `online.log` in the
-client's log folder. Start now sends a waiting host `start` on its input, and
-Cancel stops the run (a hosted game stays open until the player leaves it).
-The first visit asks once to add Smashcraft's page to Warcraft III's menus
-(`online setup`); the answer is remembered in the client's settings. The
-runner is src-tauri/src/online.rs and the page
-ui/src/pages/online.ts.
-
-"Play on" offers Smashcraft Servers beside Battle.net. It stays off until the
-player opts in on a screen showing "Smashcraft changes how Warcraft connects
-while it runs and Blizzard has not approved it." (remembered in the client's
-settings). Then Host and Join run Wisp's relay agent, `AgentHost`, inside the client
-(`relay-agent`, pinned to a wisp main SHA in src-tauri/Cargo.toml) against the
-public relay, 159.89.205.60 port 7457 (`SMASHCRAFT_RELAY` overrides it;
-wisp:docs/relay.md, "Where the relay runs, NAT, and who can join"). Host reads
-the current map's facts and shows the relay's room id as the code; Join takes
-it. A joiner whose map's SHA-1 differs from the game's is refused before the
-countdown, with both hashes named. Warcraft III must have been started with
-Play. These runs need the Smashcraft Servers switch, which a build takes from
-the private `smashcraft-servers` crate through the Cargo feature of that name
-(the crate goes in src-tauri/servers, which holds a stand-in). The public
-build has no switch, so its Host and Join through Smashcraft Servers say so
-and do nothing else (src-tauri/src/launch/, src-tauri/src/game/map_facts.rs).
 
 ## Replays
 

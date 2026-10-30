@@ -1,6 +1,6 @@
 # Agents
 
-Follow README's "Principles": if a task seems to need memory reads, disassembly, decompiled code or Blizzard's or Nintendo's files in the repo, stop and measure from outside instead. The one exception is Smashcraft Servers (README Principles); its internals live in the private repository and never here.
+Follow README's "Principles": if a task seems to need memory reads, disassembly, decompiled code or Blizzard's or Nintendo's files in the repo, stop and measure from outside instead. The client never touches a running Warcraft III: no LAN switch, no memory writes, no driving Warcraft to host or join; online play is Wisp's own window over its relay only (README Principles, "Hands off a running game").
 
 ## Structure
 

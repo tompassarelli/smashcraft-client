@@ -114,11 +114,6 @@ fn decompress(sector: &[u8], size: usize) -> Result<Vec<u8>, String> {
     }
 }
 
-/// The file `name` in the MPQ archive in `bytes`, None when it holds no such file; the archive may follow a map header.
-pub fn read_file(bytes: &[u8], name: &str) -> Result<Option<Vec<u8>>, String> {
-    read_file_from(&mut std::io::Cursor::new(bytes), name)
-}
-
 /// The file `name` in the MPQ archive `source`, reading only the parts it needs; None when it holds no such file.
 pub fn read_file_from<R: Read + Seek>(source: &mut R, name: &str) -> Result<Option<Vec<u8>>, String> {
     let length = source.seek(SeekFrom::End(0)).map_err(|e| e.to_string())? as usize;
@@ -208,52 +203,6 @@ fn decode<R: Read + Seek>(source: &mut R, archive: usize, sector_size: usize, [o
 }
 
 #[cfg(test)]
-pub(crate) mod build {
-    use super::*;
-
-    fn encrypt(words: &mut [u32], mut key: u32) {
-        let table = crypt_table();
-        let mut seed = 0xEEEE_EEEEu32;
-        for word in words.iter_mut() {
-            seed = seed.wrapping_add(table[(0x400 + (key & 0xFF)) as usize]);
-            let plain = *word;
-            *word = plain ^ key.wrapping_add(seed);
-            key = ((!key << 0x15).wrapping_add(0x1111_1111)) | (key >> 0x0B);
-            seed = plain.wrapping_add(seed).wrapping_add(seed << 5).wrapping_add(3);
-        }
-    }
-
-    fn put_table(out: &mut Vec<u8>, mut entries: Vec<u32>, name: &str) {
-        encrypt(&mut entries, hash(name, 3));
-        out.extend(entries.iter().flat_map(|word| word.to_le_bytes()));
-    }
-
-    /// A format 1 archive of single-unit files `(name, bytes, size)`, compressed when `bytes` is shorter than `size`.
-    pub(crate) fn archive(files: &[(&str, &[u8], usize)]) -> Vec<u8> {
-        let slots = 16u32;
-        let mut out = vec![0u8; 32];
-        let (mut hashes, mut blocks) = (vec![EMPTY; slots as usize * 4], Vec::new());
-        for (index, &(name, bytes, size)) in files.iter().enumerate() {
-            let flags = EXISTS | SINGLE_UNIT | if bytes.len() < size { COMPRESSED } else { 0 };
-            blocks.extend([out.len() as u32, bytes.len() as u32, size as u32, flags]);
-            out.extend_from_slice(bytes);
-            let slot = (0..slots).map(|probe| ((hash(name, 0) % slots + probe) % slots) as usize * 4).find(|&at| hashes[at + 3] == EMPTY).unwrap();
-            hashes[slot..slot + 4].copy_from_slice(&[hash(name, 1), hash(name, 2), 0, index as u32]);
-        }
-        let hash_offset = out.len() as u32;
-        put_table(&mut out, hashes, "(hash table)");
-        let block_offset = out.len() as u32;
-        put_table(&mut out, blocks, "(block table)");
-        let header = [MAGIC.as_slice(), &32u32.to_le_bytes(), &(out.len() as u32).to_le_bytes(), &0u16.to_le_bytes(), &3u16.to_le_bytes()].concat();
-        out[..16].copy_from_slice(&header);
-        for (at, value) in [(16, hash_offset), (20, block_offset), (24, slots), (28, files.len() as u32)] {
-            out[at..at + 4].copy_from_slice(&value.to_le_bytes());
-        }
-        out
-    }
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
     use std::path::Path;
@@ -265,12 +214,12 @@ mod tests {
     #[test]
     fn reads_compressed_multi_sector_encrypted_and_plain_files_stormlib_wrote() {
         let map = fixture();
-        let lua = String::from_utf8(read_file(&map, "war3map.lua").unwrap().unwrap()).unwrap();
+        let lua = String::from_utf8(read_file_from(&mut std::io::Cursor::new(&map), "war3map.lua").unwrap().unwrap()).unwrap();
         assert!(lua.starts_with("-- fixture war3map.lua"));
         assert_eq!(lua.lines().count(), 3001);
-        assert_eq!(read_file(&map, "secret\\note.txt").unwrap().unwrap(), b"an encrypted file with a fixed key\n");
-        assert_eq!(read_file(&map, "plain.txt").unwrap().unwrap(), b"stored as it is\n");
-        assert_eq!(read_file(&map, "missing.txt").unwrap(), None);
-        assert_eq!(read_file(b"not a map", "war3map.lua").unwrap_err(), "not an MPQ archive");
+        assert_eq!(read_file_from(&mut std::io::Cursor::new(&map), "secret\\note.txt").unwrap().unwrap(), b"an encrypted file with a fixed key\n");
+        assert_eq!(read_file_from(&mut std::io::Cursor::new(&map), "plain.txt").unwrap().unwrap(), b"stored as it is\n");
+        assert_eq!(read_file_from(&mut std::io::Cursor::new(&map), "missing.txt").unwrap(), None);
+        assert_eq!(read_file_from(&mut std::io::Cursor::new(b"not a map"), "war3map.lua").unwrap_err(), "not an MPQ archive");
     }
 }

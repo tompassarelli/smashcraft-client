@@ -1,23 +1,23 @@
-//! Direct play (#142): runs `bun wisp online setup|host|join CODE` in Smashcraft's
-//! tools, `SMASHCRAFT_TS` (smashcraft:docs/client-interface.md, "Commands"), and
-//! Wisp's standalone window through its relay, `bun wisp play --standalone --host
-//! --relay nearest` and `--join CODE` (smashcraft:docs/commands/online.md). The
+//! Online play (#25): runs Wisp's standalone window through its relay,
+//! `bun wisp play --standalone --host --relay nearest` and `--join CODE`
+//! (smashcraft:docs/commands/online.md), in Smashcraft's tools, `SMASHCRAFT_TS`
+//! (smashcraft:docs/client-interface.md, "Commands"). The
 //! command's output lines are written for players and shown on the Online
 //! page; its error output goes to the client's log, except the lines a run
-//! asks to show. "Start now" sends a running host a `start` line.
+//! asks to show. Warcraft III is never touched: online play is Wisp's own
+//! window only (smashcraft-client#28).
 
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Child, ChildStderr, ChildStdin, Command, Stdio};
+use std::process::{Child, ChildStderr, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
-    Setup,
     Host,
     Join,
 }
@@ -30,25 +30,8 @@ pub struct OnlineState {
     pub mode: Option<Mode>,
     /// The lines printed so far in this run.
     pub lines: Vec<String>,
-    /// The last run finished: true when it reached a match (or finished setting up).
+    /// The last run finished: true when it reached a match.
     pub finished: Option<bool>,
-}
-
-/// The command's arguments after `bun`. `repair` writes the menu page again first.
-pub fn online_args(mode: Mode, code: Option<&str>, repair: bool) -> Vec<String> {
-    let mut args = vec!["wisp".to_owned(), "online".to_owned()];
-    match mode {
-        Mode::Setup => args.push("setup".to_owned()),
-        Mode::Host => args.push("host".to_owned()),
-        Mode::Join => {
-            args.push("join".to_owned());
-            args.push(code.unwrap_or_default().trim().to_owned());
-        }
-    }
-    if repair && mode != Mode::Setup {
-        args.push("--repair".to_owned());
-    }
-    args
 }
 
 /// The standalone window's arguments after `bun`: a host opens a room on the nearest relay region, a joiner takes the region's code.
@@ -57,7 +40,6 @@ pub fn standalone_args(mode: Mode, code: Option<&str>) -> Vec<String> {
     match mode {
         Mode::Host => args.extend(["--host", "--relay", "nearest"].map(str::to_owned)),
         Mode::Join => args.extend(["--join".to_owned(), code.unwrap_or_default().trim().to_owned()]),
-        Mode::Setup => {}
     }
     args
 }
@@ -107,7 +89,6 @@ impl Process {
 pub struct Online {
     state: Mutex<OnlineState>,
     child: Mutex<Option<Child>>,
-    stdin: Mutex<Option<ChildStdin>>,
 }
 
 impl Online {
@@ -137,7 +118,7 @@ impl Online {
             *state = OnlineState { available: true, running: true, mode: Some(mode), ..OnlineState::default() };
         }
         let mut command = Command::new(program);
-        command.args(&args).current_dir(&dir).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        command.args(&args).current_dir(&dir).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
         #[cfg(unix)]
         std::os::unix::process::CommandExt::process_group(&mut command, 0);
         let spawned = command.spawn();
@@ -153,7 +134,6 @@ impl Online {
         };
         let stdout = child.stdout.take().expect("piped stdout");
         let stderr = child.stderr.take().expect("piped stderr");
-        *self.stdin.lock().unwrap() = child.stdin.take();
         *self.child.lock().unwrap() = Some(child);
         let errors = self.follow_errors(stderr, log, shown, changed.clone());
         let online = self.clone();
@@ -163,7 +143,6 @@ impl Online {
             }
             let _ = errors.join();
             let ok = online.child.lock().unwrap().take().and_then(|mut child| child.wait().ok()).is_some_and(|status| status.success());
-            *online.stdin.lock().unwrap() = None;
             let snapshot = {
                 let mut state = online.state.lock().unwrap();
                 state.running = false;
@@ -203,15 +182,7 @@ impl Online {
         })
     }
 
-    /// Asks a waiting host to start once their opponent has joined.
-    pub fn start_now(&self) -> bool {
-        match self.stdin.lock().unwrap().as_mut() {
-            Some(stdin) => stdin.write_all(b"start\n").and_then(|_| stdin.flush()).is_ok(),
-            None => false,
-        }
-    }
-
-    /// Stops the current run and what it started, such as the standalone window; a hosted game stays open in Warcraft III until the player leaves it.
+    /// Stops the current run and what it started, such as the standalone window.
     pub fn cancel(self: &Arc<Self>) {
         #[cfg(unix)]
         if let Some(pid) = self.child.lock().unwrap().as_ref().map(Child::id)
@@ -241,13 +212,6 @@ mod tests {
     use std::time::Duration;
 
     #[test]
-    fn arguments_follow_the_wisp_online_cli_setup_host_repair_and_join_code() {
-        assert_eq!(online_args(Mode::Setup, None, true), ["wisp", "online", "setup"]);
-        assert_eq!(online_args(Mode::Host, None, true), ["wisp", "online", "host", "--repair"]);
-        assert_eq!(online_args(Mode::Join, Some(" abcd-efgh "), false), ["wisp", "online", "join", "abcd-efgh"]);
-    }
-
-    #[test]
     fn standalone_arguments_host_through_the_nearest_relay_region_and_join_by_its_code() {
         assert_eq!(standalone_args(Mode::Host, None), ["wisp", "play", "--standalone", "--host", "--relay", "nearest"]);
         assert_eq!(standalone_args(Mode::Join, Some(" sgp-7K2M-QX9D-R3TB-4 ")), ["wisp", "play", "--standalone", "--join", "sgp-7K2M-QX9D-R3TB-4"]);
@@ -271,18 +235,19 @@ mod tests {
         }
     }
 
-    /// A stand-in host: prints its code, then waits for `start` on stdin as `wisp online host` does.
+    /// A stand-in host: prints its code, then waits until the test lets it go on.
     #[cfg(unix)]
     #[test]
-    fn start_now_reaches_a_waiting_host_and_only_output_lines_are_shown() {
+    fn one_run_at_a_time_and_only_output_lines_are_shown() {
         let online = Arc::new(Online::default());
         let log = std::env::temp_dir().join(format!("smashcraft-online-{}.log", std::process::id()));
+        let go = std::env::temp_dir().join(format!("smashcraft-online-{}.go", std::process::id()));
         let (tx, rx) = mpsc::channel();
-        let script = "echo 'Join code: ABCD-EFGH'; echo detail >&2; read line; echo \"got $line\"; echo 'In the match'";
+        let script = format!("echo 'Join code: ABCD-EFGH'; echo detail >&2; while [ ! -e '{}' ]; do sleep 0.05; done; echo 'In the match'", go.display());
         online
             .start(
                 Mode::Host,
-                Process::new("sh", vec!["-c".into(), script.into()], std::env::temp_dir()),
+                Process::new("sh", vec!["-c".into(), script], std::env::temp_dir()),
                 Some(log.clone()),
                 |_| false,
                 move |state| {
@@ -292,14 +257,14 @@ mod tests {
             .unwrap();
         assert_eq!(rx.recv_timeout(Duration::from_secs(10)).unwrap().lines, ["Join code: ABCD-EFGH"]);
         assert!(online.start(Mode::Join, Process::new("sh", vec![], std::env::temp_dir()), None, |_| false, |_| {}).is_err(), "one run at a time");
-        assert!(online.start_now());
+        std::fs::write(&go, "").unwrap();
         let done = wait_finished(&rx);
-        assert_eq!(done.lines, ["Join code: ABCD-EFGH", "got start", "In the match"]);
+        assert_eq!(done.lines, ["Join code: ABCD-EFGH", "In the match"]);
         assert_eq!(done.finished, Some(true));
         assert_eq!(done.mode, Some(Mode::Host));
         assert_eq!(std::fs::read_to_string(&log).unwrap(), "detail\n");
         let _ = std::fs::remove_file(log);
-        assert!(!online.start_now(), "nothing to start once the run ended");
+        let _ = std::fs::remove_file(go);
     }
 
     #[cfg(unix)]

@@ -1,7 +1,0 @@
-[package]
-name = "smashcraft-servers"
-version = "0.1.0"
-edition = "2024"
-publish = false
-license = "MIT"
-description = "Stand-in for the private Smashcraft Servers crate: builds with that crate put it in this folder"

@@ -8,7 +8,6 @@ mod autostart;
 mod cli;
 mod commands;
 mod files;
-mod game;
 mod instance_lock;
 mod launch;
 mod link;

@@ -2541,27 +2541,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
-name = "relay"
-version = "0.1.0"
-source = "git+https://github.com/tompassarelli/wisp?rev=09832b76e5c46eccccf8ff324b3451ab20f44d1b#09832b76e5c46eccccf8ff324b3451ab20f44d1b"
-dependencies = [
- "relay-proto",
-]
-
-[[package]]
-name = "relay-agent"
-version = "0.1.0"
-source = "git+https://github.com/tompassarelli/wisp?rev=09832b76e5c46eccccf8ff324b3451ab20f44d1b#09832b76e5c46eccccf8ff324b3451ab20f44d1b"
-dependencies = [
- "relay-proto",
-]
-
-[[package]]
-name = "relay-proto"
-version = "0.1.0"
-source = "git+https://github.com/tompassarelli/wisp?rev=09832b76e5c46eccccf8ff324b3451ab20f44d1b#09832b76e5c46eccccf8ff324b3451ab20f44d1b"
-
-[[package]]
 name = "reqwest"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2871,17 +2850,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sha1"
-version = "0.10.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a978451301f4db1d02937a4ab3ccce137717b81826e79b7d49ffe3244a13c3b8"
-dependencies = [
- "cfg-if",
- "cpufeatures",
- "digest",
-]
-
-[[package]]
 name = "sha2"
 version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2939,26 +2907,16 @@ name = "smashcraft-client"
 version = "0.1.0"
 dependencies = [
  "cc",
- "crc32fast",
  "flate2",
  "libc",
  "padbridge-model",
- "relay",
- "relay-agent",
- "relay-proto",
  "serde",
  "serde_json",
- "sha1",
  "sha2",
- "smashcraft-servers",
  "tauri",
  "tauri-build",
  "tauri-plugin-autostart",
 ]
-
-[[package]]
-name = "smashcraft-servers"
-version = "0.1.0"
 
 [[package]]
 name = "socket2"

@@ -16,7 +16,3 @@ pub fn play(app: AppHandle, state: State<AppState>) -> Result<play::PlayState, S
     })?;
     Ok(state.play.state(&maps))
 }
-
-pub fn warcraft_pid(state: &AppState) -> Option<u32> {
-    state.play.warcraft_pid()
-}
