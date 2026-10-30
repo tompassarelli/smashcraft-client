@@ -52,7 +52,7 @@ test("cargo is found in the documented order: CARGO, PATH, the pinned rustup too
 });
 
 test("a cargo on PATH keeps its command and gets the pinned toolchain's bin as path, so the capacity shim finds the real cargo", () => {
-  const bin = "/home/p/.rustup/toolchains/1.96.1-x86_64-unknown-linux-gnu/bin";
+  const bin = join("/home/p", ".rustup", "toolchains", "1.96.1-x86_64-unknown-linux-gnu", "bin");
   const search = (files: string[]): CargoSearch => ({
     env: {}, home: "/home/p", channel: "1.96.1", hosts: ["x86_64-unknown-linux-gnu"], stores: [],
     exists: (path) => files.includes(path), list: () => [], which: (command) => (command === "cargo" ? "/home/p/.local/bin/cargo" : null),
