@@ -1,7 +1,8 @@
 // Finds the cargo that builds the client: CARGO, cargo on PATH, the pinned
 // toolchain rustup installed (~/.rustup/toolchains/<channel>-<host>), or a
-// rustup from the nix store running that channel. The toolchain's own folder
-// goes first on PATH so cargo finds its rustc.
+// rustup from the nix store running that channel. The pinned toolchain's folder
+// goes first on PATH whenever it exists, so cargo finds its rustc and a cargo
+// shim on PATH finds the real cargo.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -35,13 +36,13 @@ export function pinnedChannel(toml: string): string | undefined {
 export function findCargo(search: CargoSearch): Cargo | undefined {
   const given = search.env.CARGO;
   if (given !== undefined && search.exists(given)) return { command: [given], path: dirname(given) };
-  const onPath = search.which("cargo");
-  if (onPath !== null) return { command: [onPath] };
   const rustupHome = search.env.RUSTUP_HOME ?? join(search.home, ".rustup");
-  for (const host of search.hosts) {
-    const bin = join(rustupHome, "toolchains", `${search.channel}-${host}`, "bin");
-    if (search.exists(join(bin, "cargo"))) return { command: [join(bin, "cargo")], path: bin };
-  }
+  const pinned = search.hosts
+    .map((host) => join(rustupHome, "toolchains", `${search.channel}-${host}`, "bin"))
+    .find((bin) => search.exists(join(bin, "cargo")));
+  const onPath = search.which("cargo");
+  if (onPath !== null) return pinned === undefined ? { command: [onPath] } : { command: [onPath], path: pinned };
+  if (pinned !== undefined) return { command: [join(pinned, "cargo")], path: pinned };
   const rustup = search.which("rustup") ?? search.stores.flatMap((store) =>
     search.list(store).filter((name) => /^[a-z0-9]{32}-rustup-[0-9.]+$/.test(name)).sort().map((name) => join(store, name, "bin/rustup")),
   ).find((path) => search.exists(path));

@@ -19,7 +19,7 @@ test("a run's view: only a host shows its join code, may start now only while ru
     const lines = Array.from({ length: Math.floor(next() * 5) }, () => pick(LINES));
     const running = next() < 0.5;
     const finished = pick([null, true, false]);
-    const view = onlineView({ available: true, running, mode, lines, finished });
+    const view = onlineView({ available: true, running, map: null, mode, lines, finished });
     const codes = lines.filter((line) => line.startsWith("Join code: ")).map((line) => line.slice("Join code: ".length));
     expect(view.code).toBe(mode === "host" ? codes[0] : undefined);
     expect(view.steps).toEqual(lines.filter((line) => !line.startsWith("Join code: ")));

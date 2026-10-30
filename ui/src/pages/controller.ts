@@ -4,40 +4,9 @@ import {
   type Binding, type Bindings, type Button, type Control, type ControllerState, type ControllerSettings, type InputView, type ProfileChoice, type RightStick,
 } from "../model";
 import { api } from "../tauri";
+import { statusCard } from "./status";
 
 const NEUTRAL: InputView = { left: [0, 0], right: [0, 0], lt: 0, rt: 0, buttons: 0 };
-
-function statusCard(): { el: HTMLElement; render: (s: ControllerState) => void } {
-  const rows = h("div.rows");
-  const problem = h("p.problem", { hidden: true });
-  const turnOn = h("button.primary", { type: "button" }, "Turn on controller support");
-  const offNote = h(
-    "p.note",
-    {},
-    "Controller support lets your gamepad play Warcraft III. It keeps running in the background, also when this window is closed.",
-  );
-  const off = h("div.turn-on", { hidden: true }, offNote, turnOn);
-  turnOn.addEventListener("click", async () => {
-    turnOn.disabled = true;
-    try {
-      render(await api.turnOnController());
-    } finally {
-      turnOn.disabled = false;
-    }
-  });
-  const render = (s: ControllerState) => {
-    rows.replaceChildren(
-      ...s.view.rows.map((row) =>
-        h(`div.row.${row.light}`, {}, h("span.light"), h("span.label", {}, row.label), h("span.text", {}, row.text)),
-      ),
-    );
-    problem.hidden = !s.view.problem;
-    problem.textContent = s.view.problem ?? "";
-    off.hidden = s.link !== "off";
-    turnOn.textContent = s.wanted ? "Try again" : "Turn on controller support";
-  };
-  return { el: h("section.card.status", {}, h("h2", {}, "Status"), rows, problem, off), render };
-}
 
 type Line = { tag: string; text: string; kind: "fight" | "menus" | "none" };
 
@@ -339,10 +308,11 @@ export function controllerPage(root: HTMLElement): () => void {
     if (s.link !== "connected") pad.render(NEUTRAL);
   };
   void api.controllerState().then(onState);
+  void api.playState().then((state) => status.setMap(state.map));
   void api.bindings().then((b) => {
     profile.select(b.profile);
     mapping.load(b);
   });
-  const unlisten = [api.onController(onState), api.onInput((input) => link === "connected" && pad.render(input))];
+  const unlisten = [api.onController(onState), api.onPlay((state) => status.setMap(state.map)), api.onInput((input) => link === "connected" && pad.render(input))];
   return () => unlisten.forEach((p) => void p.then((stop) => stop()));
 }

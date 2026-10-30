@@ -26,7 +26,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 flate2 = "1"
-padbridge-model = { git = "https://github.com/tompassarelli/padbridge", tag = "v0.4.0" }
+padbridge-model = { git = "https://github.com/tompassarelli/padbridge", tag = "v0.4.2" }
 sha1 = "0.10"
 crc32fast = "1"
 relay-agent = { git = "https://github.com/tompassarelli/wisp", rev = "09832b76e5c46eccccf8ff324b3451ab20f44d1b" }

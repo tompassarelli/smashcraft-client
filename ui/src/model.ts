@@ -49,7 +49,7 @@ export type Press = { key: string } | "left_click" | "right_click" | "pointer";
 export type Binding = { control: Control; action: string; press: Press };
 export type Bindings = { smashcraft: Binding[]; smashcraft_menus: Binding[]; profile: ProfileChoice; pad_preset: PadPreset; tap_jump: boolean; triggers: TriggerShields; right_stick: RightStick; pad_presets: PadPresetBindings[] };
 
-export type PlayState = { available: boolean; running: boolean; lines: string[]; finished: boolean | null };
+export type PlayState = { available: boolean; running: boolean; map: string | null; lines: string[]; finished: boolean | null };
 export type OnlineMode = "setup" | "host" | "join";
 export type OnlineState = PlayState & { mode: OnlineMode | null };
 

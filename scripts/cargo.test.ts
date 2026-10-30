@@ -42,13 +42,23 @@ test("cargo is found in the documented order: CARGO, PATH, the pinned rustup too
     const pinned = join(home, ".rustup", "toolchains", `${channel}-${host}`, "bin");
     const expected =
       env.CARGO !== undefined && files.includes(cargoEnv) ? { command: [cargoEnv], path: dirname(cargoEnv) }
-      : onPath.cargo !== undefined ? { command: [onPath.cargo] }
+      : onPath.cargo !== undefined ? (files.includes(join(pinned, "cargo")) ? { command: [onPath.cargo], path: pinned } : { command: [onPath.cargo] })
       : files.includes(join(pinned, "cargo")) ? { command: [join(pinned, "cargo")], path: pinned }
       : onPath.rustup !== undefined ? { command: [onPath.rustup, "run", channel, "cargo"] }
       : files.includes(storeRustup) ? { command: [storeRustup, "run", channel, "cargo"] }
       : undefined;
     expect(findCargo(search)).toEqual(expected);
   }
+});
+
+test("a cargo on PATH keeps its command and gets the pinned toolchain's bin as path, so the capacity shim finds the real cargo", () => {
+  const bin = "/home/p/.rustup/toolchains/1.96.1-x86_64-unknown-linux-gnu/bin";
+  const search = (files: string[]): CargoSearch => ({
+    env: {}, home: "/home/p", channel: "1.96.1", hosts: ["x86_64-unknown-linux-gnu"], stores: [],
+    exists: (path) => files.includes(path), list: () => [], which: (command) => (command === "cargo" ? "/home/p/.local/bin/cargo" : null),
+  });
+  expect(findCargo(search([join(bin, "cargo")]))).toEqual({ command: ["/home/p/.local/bin/cargo"], path: bin });
+  expect(findCargo(search([]))).toEqual({ command: ["/home/p/.local/bin/cargo"] });
 });
 
 test("the pinned channel round-trips through rust-toolchain.toml (seed 2, 200 cases)", () => {

@@ -3,7 +3,7 @@ import type { OnlineState } from "../model";
 import { looksLikeCode, type Network, networkView, type OnlineView, onlineView, SMASHCRAFT_SERVERS_OPT_IN } from "../online";
 import { onlineApi } from "../tauri-online";
 
-const EMPTY: OnlineState = { available: false, running: false, mode: null, lines: [], finished: null };
+const EMPTY: OnlineState = { available: false, running: false, map: null, mode: null, lines: [], finished: null };
 
 /** Asked once: online play needs Smashcraft's page in Warcraft III's menus. */
 function askCard(choice: boolean | null, setUp: () => void, decline: () => void): HTMLElement {

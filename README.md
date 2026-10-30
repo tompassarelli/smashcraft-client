@@ -213,7 +213,9 @@ cd .. && bun scripts/install.ts
 
 The install finds cargo itself (scripts/cargo.ts): `CARGO`,
 cargo on `PATH`, rustup's pinned toolchain in ~/.rustup, or a rustup in the
-nix store running that channel. Outside nix-shell it builds inside shell.nix.
+nix store running that channel. When the pinned toolchain exists its bin folder
+goes first on `PATH` even for a cargo already there, so north's cargo shim finds
+the real cargo. Outside nix-shell it builds inside shell.nix.
 For `cargo test`, put rustup's 1.96.1 toolchain on `PATH` first
 (`$HOME/.rustup/toolchains/1.96.1-x86_64-unknown-linux-gnu/bin`). The install
 lives in ~/.local/share/smashcraft-build-inputs/smashcraft-client (one folder

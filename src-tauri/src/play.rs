@@ -9,11 +9,26 @@ use std::sync::Mutex;
 const MAPS_SUBFOLDER: &str = "00-Smashcraft";
 const RETAIL_EXE: &str = "Warcraft III/_retail_/x86_64/Warcraft III.exe";
 
-pub fn map_version(name: &str) -> Option<(u32, u32, u32)> {
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MapVersion {
+    Release(u32, u32, u32),
+    Dev(u32),
+}
+
+pub fn map_version(name: &str) -> Option<MapVersion> {
     let rest = name.strip_prefix("Smashcraft ")?.strip_suffix(".w3x")?;
+    if let Some((line, build)) = rest.split_once("-dev.") {
+        let mut line = line.split('.').map(|part| part.parse::<u32>().ok());
+        let (_, _) = (line.next()??, line.next()??);
+        return line.next().is_none().then_some(MapVersion::Dev(build.parse().ok()?));
+    }
     let mut parts = rest.split('.').map(|part| part.parse::<u32>().ok());
-    let version = (parts.next()??, parts.next()??, parts.next()??);
+    let version = MapVersion::Release(parts.next()??, parts.next()??, parts.next()??);
     parts.next().is_none().then_some(version)
+}
+
+fn map_title(map: &Path) -> Option<String> {
+    map.file_stem().map(|stem| stem.to_string_lossy().into_owned())
 }
 
 pub fn current_map(maps_folders: &[PathBuf]) -> Option<PathBuf> {
@@ -63,6 +78,7 @@ pub fn launch_for(map: &Path, program: Option<OsString>, windows: bool) -> Optio
 pub struct PlayState {
     pub available: bool,
     pub running: bool,
+    pub map: Option<String>,
     pub lines: Vec<String>,
     pub finished: Option<bool>,
 }
@@ -76,7 +92,9 @@ pub struct Play {
 impl Play {
     pub fn state(&self, maps_folders: &[PathBuf]) -> PlayState {
         let mut state = self.state.lock().unwrap().clone();
-        state.available = current_map(maps_folders).is_some();
+        let map = current_map(maps_folders);
+        state.available = map.is_some();
+        state.map = map.as_deref().and_then(map_title);
         state
     }
 
@@ -87,7 +105,7 @@ impl Play {
 
     pub fn start(&'static self, maps_folders: &[PathBuf], changed: impl Fn(PlayState) + Send + Sync + 'static) -> Result<(), String> {
         let map = current_map(maps_folders).ok_or("No Smashcraft map is in Warcraft III's Maps/00-Smashcraft folder yet.")?;
-        let name = map.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = map_title(&map).unwrap_or_default();
         let mut lines = vec![format!("Map: {name}")];
         let started = match launch_for(&map, std::env::var_os("WARCRAFT_III"), cfg!(windows)) {
             None => {
@@ -120,7 +138,7 @@ impl Play {
         };
         let snapshot = {
             let mut state = self.state.lock().unwrap();
-            *state = PlayState { available: true, running: false, lines, finished: Some(started) };
+            *state = PlayState { available: true, running: false, map: Some(name), lines, finished: Some(started) };
             state.clone()
         };
         changed(snapshot);
@@ -138,8 +156,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn play_is_available_with_a_map_present_and_no_pad_connected() {
+        let dir = std::env::temp_dir().join(format!("smashcraft-play-keyboard-{}", std::process::id()));
+        let maps = dir.join("Maps");
+        std::fs::create_dir_all(maps.join("00-Smashcraft")).unwrap();
+        std::fs::write(maps.join("00-Smashcraft/Smashcraft 0.3-dev.456.w3x"), "").unwrap();
+        let state = Play::default().state(std::slice::from_ref(&maps));
+        assert!(state.available && !state.running);
+        assert_eq!(state.map.as_deref(), Some("Smashcraft 0.3-dev.456"));
+        assert!(!Play::default().state(&[dir.join("Elsewhere")]).available);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn the_current_map_is_the_highest_release_in_00_smashcraft_per_the_client_interface() {
-        assert_eq!(map_version("Smashcraft 0.0.41.w3x"), Some((0, 0, 41)));
+        assert_eq!(map_version("Smashcraft 0.0.41.w3x"), Some(MapVersion::Release(0, 0, 41)));
+        assert_eq!(map_version("Smashcraft 0.3-dev.456.w3x"), Some(MapVersion::Dev(456)));
+        assert_eq!(map_version("Smashcraft 0.3-dev.456 test 2.w3x"), None);
+        assert_eq!(map_version("Smashcraft 0.3-dev.w3x"), None);
+        assert_eq!(map_version("Other 0.3-dev.456.w3x"), None);
         assert_eq!(map_version("Smashcraft 0.0.41 test 2.w3x"), None);
         assert_eq!(map_version("Other 0.0.41.w3x"), None);
         let dir = std::env::temp_dir().join(format!("smashcraft-play-{}", std::process::id()));
@@ -152,6 +187,14 @@ mod tests {
         }
         let map = current_map(std::slice::from_ref(&folder)).unwrap();
         assert_eq!(map, folder.join("00-Smashcraft/Smashcraft 0.0.10.w3x"));
+        for name in ["Smashcraft 0.3-dev.438.w3x", "Smashcraft 0.3-dev.456.w3x", "Smashcraft 0.3-dev.99.w3x", "Smashcraft 0.3-dev.500 test 2.w3x"] {
+            std::fs::write(folder.join("00-Smashcraft").join(name), "").unwrap();
+        }
+        let newest = current_map(std::slice::from_ref(&folder)).unwrap();
+        assert_eq!(newest, folder.join("00-Smashcraft/Smashcraft 0.3-dev.456.w3x"));
+        for name in ["Smashcraft 0.3-dev.438.w3x", "Smashcraft 0.3-dev.456.w3x", "Smashcraft 0.3-dev.99.w3x", "Smashcraft 0.3-dev.500 test 2.w3x"] {
+            std::fs::remove_file(folder.join("00-Smashcraft").join(name)).unwrap();
+        }
         let launch = launch_for(&map, None, false).unwrap();
         assert_eq!(launch.prefix.as_deref(), Some(dir.as_path()));
         assert_eq!(launch.args[1..3], [OsString::from("-launch"), OsString::from("-loadfile")]);
