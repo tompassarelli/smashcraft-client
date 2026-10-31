@@ -1,5 +1,5 @@
 import type { Api } from "./api";
-import type { ReplayScene, Simulation, Simulations, Watch } from "./replays";
+import type { MapReplayOpened, Simulation, Simulations, Watch } from "./replays";
 
 type MapWatchApi = Pick<Api, "keepSim" | "keptSim" | "keptSims" | "mapVersions" | "mapReplayOpen" | "mapReplayStep" | "mapReplayClose">;
 
@@ -43,25 +43,23 @@ export function simulations(api: MapWatchApi, pageUrl: string): Simulations {
 
 let viewerLua: Promise<string> | undefined;
 
-type Stepped = { frame: number; ended: boolean; scene: ReplayScene } | { problem: string };
-
 /** The replay played in its version's own map, in the app (smashcraft-client:src-tauri/src/mapsim.rs). */
 export async function mapWatch(api: MapWatchApi, pageUrl: string, version: string, lines: readonly string[]): Promise<Watch | string | undefined> {
   const viewer = await (viewerLua ??= fetch(new URL("./viewer.lua", pageUrl).href).then((response) => response.text()));
-  let answer: string;
+  let answer: MapReplayOpened;
   try {
     answer = await api.mapReplayOpen(version, `${lines.join("\n")}\n`, viewer);
   } catch (error) {
     if (String(error).startsWith("no map of version")) return undefined;
     return String(error);
   }
-  const { id, opened } = JSON.parse(answer) as { id: number; opened: { first: number; last: number; frame: number } | { problem: string } };
+  const { id, opened } = answer;
   if ("problem" in opened) {
     api.mapReplayClose(id);
     return opened.problem;
   }
   const step = async (seek: boolean, frames: number) => {
-    const stepped = JSON.parse(await api.mapReplayStep(id, seek, frames)) as Stepped;
+    const stepped = await api.mapReplayStep(id, seek, frames);
     if ("problem" in stepped) throw new Error(stepped.problem);
     return stepped;
   };

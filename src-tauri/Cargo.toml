@@ -23,7 +23,7 @@ cc = "1"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-autostart = "2"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["raw_value"] }
 sha2 = "0.10"
 flate2 = "1"
 padbridge-model = { git = "https://github.com/tompassarelli/padbridge", tag = "v0.4.2" }

@@ -1,7 +1,7 @@
 // The Rust side's commands and events (app.withGlobalTauri exposes window.__TAURI__).
 import type { Bindings, ControllerState, InputView, PlayState, PadPreset, ProfileChoice, RightStick, TriggerShields } from "./controller";
 import type { HistoryStore, RecordFile } from "./records";
-import type { ReplayFile, WarcraftGame } from "./replays";
+import type { MapReplayOpened, MapReplayStepped, ReplayFile, WarcraftGame } from "./replays";
 
 type TauriGlobal = {
   core: { invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> };
@@ -37,8 +37,8 @@ export const api = {
   keptSim: (version: string) => invoke<string | null>("kept_sim", { version }),
   keptSims: () => invoke<string[]>("kept_sims"),
   mapVersions: () => invoke<string[]>("map_versions"),
-  mapReplayOpen: (version: string, replay: string, viewer: string) => invoke<string>("map_replay_open", { version, replay, viewer }),
-  mapReplayStep: (id: number, seek: boolean, frames: number) => invoke<string>("map_replay_step", { id, seek, frames }),
+  mapReplayOpen: (version: string, replay: string, viewer: string) => invoke<MapReplayOpened>("map_replay_open", { version, replay, viewer }),
+  mapReplayStep: (id: number, seek: boolean, frames: number) => invoke<MapReplayStepped>("map_replay_step", { id, seek, frames }),
   mapReplayClose: (id: number) => void invoke<void>("map_replay_close", { id }).catch(() => undefined),
   warcraftGames: () => invoke<WarcraftGame[]>("warcraft_games"),
   watchInWarcraft: (file: string, name: string) => invoke<string>("watch_in_warcraft", { file, name }),

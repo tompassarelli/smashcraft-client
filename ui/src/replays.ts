@@ -146,6 +146,10 @@ export type Simulations = {
 
 export type Opened = { watch: Watch } | { problem: string };
 
+/** The app's answers about a replay open in a version's map (smashcraft-client:src-tauri/src/commands/replays.rs). */
+export type MapReplayOpened = { id: number; opened: { first: number; last: number; frame: number } | { problem: string } };
+export type MapReplayStepped = { frame: number; ended: boolean; scene: ReplayScene } | { problem: string };
+
 /** The words naming a version a player can tell apart. */
 export const versionName = (version: string, build: string) => `Smashcraft ${build} (version ${version})`;
 

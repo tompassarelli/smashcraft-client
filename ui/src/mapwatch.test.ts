@@ -14,7 +14,7 @@ const scene = (frame: number) => ({ frame }) as unknown as ReplayScene;
 const refused = (message: string) => async () => Promise.reject(message);
 
 /** The map simulation's side of the app: answers in order, and every call it took. */
-function fakeApi(open: Api["mapReplayOpen"], steps: string[] = []) {
+function fakeApi(open: Api["mapReplayOpen"], steps: Awaited<ReturnType<Api["mapReplayStep"]>>[] = []) {
   const calls: unknown[][] = [];
   const api: FakeApi = {
     keepSim: async (version) => void calls.push(["keepSim", version]),
@@ -31,12 +31,12 @@ function fakeApi(open: Api["mapReplayOpen"], steps: string[] = []) {
   return { api, calls };
 }
 
-test("a map replay opens at its first frame, advances and seeks through the app's JSON, and says when it ended", async () => {
-  const shown = (frame: number, ended = false) => JSON.stringify({ frame, ended, scene: scene(frame) });
+test("a map replay opens at its first frame, advances and seeks through the app's answers, and says when it ended", async () => {
+  const shown = (frame: number, ended = false) => ({ frame, ended, scene: scene(frame) });
   let sent = "";
   const { api, calls } = fakeApi(async (version, replay) => {
     sent = `${version}:${replay}`;
-    return JSON.stringify({ id: 7, opened: { first: 2, last: 700, frame: 0 } });
+    return { id: 7, opened: { first: 2, last: 700, frame: 0 } };
   }, [shown(2), shown(452), shown(100), shown(700, true)]);
   const watch = (await mapWatch(api, KIT_PAGE, "0123", ["a", "b"])) as Watch;
   expect(sent).toBe("0123:a\nb\n");
@@ -56,13 +56,13 @@ test("a version with no map falls through to the caller; any other refusal is sh
 });
 
 test("a replay the map refuses to open closes its simulation and shows why", async () => {
-  const { api, calls } = fakeApi(async () => JSON.stringify({ id: 3, opened: { problem: "this replay is cut short" } }));
+  const { api, calls } = fakeApi(async () => ({ id: 3, opened: { problem: "this replay is cut short" } }));
   expect(await mapWatch(api, KIT_PAGE, "0123", [])).toBe("this replay is cut short");
   expect(calls).toEqual([["close", 3]]);
 });
 
 test("a step the map refuses rejects with the map's own words", async () => {
-  const { api } = fakeApi(async () => JSON.stringify({ id: 3, opened: { first: 0, last: 4, frame: 0 } }), [JSON.stringify({ problem: "desynced" })]);
+  const { api } = fakeApi(async () => ({ id: 3, opened: { first: 0, last: 4, frame: 0 } }), [{ problem: "desynced" }]);
   await expect(mapWatch(api, KIT_PAGE, "0123", [])).rejects.toThrow("desynced");
 });
 

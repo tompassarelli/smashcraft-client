@@ -1,3 +1,4 @@
+use serde_json::value::RawValue;
 use tauri::State;
 
 use crate::state::{AppState, maps_of};
@@ -35,16 +36,26 @@ pub async fn map_versions(state: State<'_, AppState>) -> Result<Vec<String>, Str
     Ok(state.mapsims.scan(&maps_of(&state)))
 }
 
-/// Opens a joined replay in its version's map: {"id", "opened"} with the viewer driver's answer.
+#[derive(serde::Serialize)]
+pub struct Opened {
+    id: u32,
+    opened: Box<RawValue>,
+}
+
+fn driver_answer(text: String) -> Result<Box<RawValue>, String> {
+    RawValue::from_string(text).map_err(|e| format!("the viewer driver answered something that isn't JSON: {e}"))
+}
+
+/// Opens a joined replay in its version's map: the new id and the viewer driver's answer.
 #[tauri::command]
-pub async fn map_replay_open(state: State<'_, AppState>, version: String, replay: String, viewer: String) -> Result<String, String> {
+pub async fn map_replay_open(state: State<'_, AppState>, version: String, replay: String, viewer: String) -> Result<Opened, String> {
     let (id, opened) = state.mapsims.open(&maps_of(&state), &version, &replay, &viewer)?;
-    Ok(format!("{{\"id\":{id},\"opened\":{opened}}}"))
+    Ok(Opened { id, opened: driver_answer(opened)? })
 }
 
 #[tauri::command]
-pub async fn map_replay_step(state: State<'_, AppState>, id: u32, seek: bool, frames: i64) -> Result<String, String> {
-    state.mapsims.step(id, seek, frames)
+pub async fn map_replay_step(state: State<'_, AppState>, id: u32, seek: bool, frames: i64) -> Result<Box<RawValue>, String> {
+    driver_answer(state.mapsims.step(id, seek, frames)?)
 }
 
 #[tauri::command]
