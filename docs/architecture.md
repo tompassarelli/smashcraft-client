@@ -15,7 +15,7 @@ A module may use only the modules in its "may use" column. The UI talks to Rust 
 | launch | `src-tauri/src/`: play, online; `src-tauri/src/launch/`: steam, window | Start Warcraft; online play through `bun wisp play --standalone` only, never touching a running Warcraft III (smashcraft-client#28) | game-files |
 | app | `src-tauri/src/lib.rs` (setup); `commands/` (handlers by page and the command list); sink (tray light and menu); settings, tray, autostart, single | Tauri wiring and command handlers | link, game-files, launch |
 | ui-types | `ui/src/controller.ts` (hand mirror) | Protocol and command types | none |
-| ui-core | `ui/src/`: tauri, tauri-online, dom, draw, playback, stats, history, online, play, records, replays, router | Invoke wrappers and pure helpers | ui-types |
+| ui-core | `ui/src/`: tauri, tauri-online, dom, draw, playback, stats, bindings, mapwatch, history, online, play, records, replays, router | Invoke wrappers and pure helpers | ui-types |
 | ui-pages | `ui/src/pages/`, `ui/src/main.ts` | One page per tab | ui-core, ui-types |
 | scripts | `scripts/` | Kit fetch, install, cargo, icons | none |
 
@@ -30,9 +30,9 @@ A module may use only the modules in its "may use" column. The UI talks to Rust 
 | Service TCP protocol types | crate `padbridge-model` v0.4.0 (`src-tauri/Cargo.toml`), `ui/src/controller.ts` | padbridge `protocol` crate by tag + generated `ui/src/generated/protocol.ts` in C1 |
 | Service supervision and TCP client | `src-tauri/src/link/{supervisor,client}.rs` (`WC3_CONTROLLER_*`, `padbridge` binary) | `PADBRIDGE_*`, `padbridge` in C1 |
 | Plug-in protocol | not here: padbridge `src/service/plugin.rs`; the client only passes `--plugin` (`plugin_program` in `src-tauri/src/link/client.rs`) | padbridge `protocol/src/plugin.rs` in P1 |
-| Controller page | `ui/src/pages/controller.ts` (face layout hardcoded), commands in `src-tauri/src/lib.rs` | face layout from the snapshot in C1; `src-tauri/src/commands/controller.rs` in C3 |
+| Controller page | `ui/src/pages/controller.ts`, `ui/src/pages/pad.ts` (face layout hardcoded), `ui/src/bindings.ts` (callout lines), commands in `src-tauri/src/lib.rs` | face layout from the snapshot in C1; `src-tauri/src/commands/controller.rs` in C3 |
 | Records parsing and history | `ui/src/records.ts`, `ui/src/history.ts`, folders in `src-tauri/src/records.rs` | kit `records.js` in C2; `game/records.rs` in C3 |
-| Map replays and the viewer sim | `src-tauri/src/replays.rs`, `src-tauri/src/mapsim.rs`, `src-tauri/src/mapsim.lua`, `ui/src/replays.ts`, `ui/src/pages/replays.ts` | kit `viewerEntry`/`versionModule` in C2; `game/{map_replays,mapsim}.rs` in C3 |
+| Map replays and the viewer sim | `src-tauri/src/replays.rs`, `src-tauri/src/mapsim.rs`, `src-tauri/src/mapsim.lua`, `ui/src/replays.ts`, `ui/src/mapwatch.ts`, `ui/src/pages/replays.ts` | kit `viewerEntry`/`versionModule` in C2; `game/{map_replays,mapsim}.rs` in C3 |
 | Warcraft's `LastReplay.w3g` library | `src-tauri/src/warcraft_replays.rs` | `game/w3g_library.rs` in C3 |
 | Record, replay and map file names | `src-tauri/src/records.rs`, `src-tauri/src/replays.rs`, `src-tauri/src/play.rs` | kit `files.json` in C2 |
 | Launching Warcraft | `src-tauri/src/play.rs`, `ui/src/play.ts` | `launch/warcraft.rs` in C3 |

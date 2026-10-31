@@ -1,104 +1,12 @@
 import { h } from "../dom";
 import { drawScene } from "../draw";
 import { Playback, clock } from "../playback";
-import { duration } from "../records";
+import { simulations } from "../mapwatch";
 import {
-  type ReplayEntry, type ReplayScene, type Simulation, type Simulations, type WarcraftGame, type Watch, joinedReplay, keptName, openForWatching, replayEntries, versionName,
+  SLOTS, type ReplayEntry, type WarcraftGame, joinedReplay, keptName, openForWatching, replayDetail, replayEntries, replayNames, replayTitle, versionName,
   warcraftGameOf, warcraftName,
 } from "../replays";
 import { api } from "../api";
-
-const OWN_SIMULATION = "./sim.js";
-
-function asSimulation(module: unknown): Simulation {
-  const sim = module as Partial<Simulation>;
-  if (typeof sim.openReplay !== "function" || typeof sim.sourceVersion !== "function" || sim.VIEWER_API !== 1) throw new Error("this version can't show replays");
-  return sim as Simulation;
-}
-
-/** This client's own simulation, kept so a later client can still play its replays, and every one it kept. */
-function simulations(): Simulations {
-  const ownUrl = new URL(OWN_SIMULATION, location.href).href;
-  let own: Promise<Simulation> | undefined;
-  const loadOwn = async () => {
-    const sim = asSimulation(await import(ownUrl));
-    const code = await fetch(ownUrl).then((response) => response.text());
-    await api.keepSim(sim.sourceVersion(), code).catch(() => undefined);
-    return sim;
-  };
-  return {
-    own: () => (own ??= loadOwn()),
-    kept: async (version) => {
-      const code = await api.keptSim(version);
-      if (code === null || code === undefined) return undefined;
-      const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
-      try {
-        return asSimulation(await import(url));
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    },
-    map: (version, lines) => mapWatch(version, lines),
-    held: async () => {
-      const versions = new Set([(await (own ??= loadOwn())).sourceVersion(), ...(await api.keptSims()), ...(await api.mapVersions().catch(() => []))]);
-      return [...versions];
-    },
-  };
-}
-
-let viewerLua: Promise<string> | undefined;
-
-type Stepped = { frame: number; ended: boolean; scene: ReplayScene } | { problem: string };
-
-/** The replay played in its version's own map, in the app (smashcraft-client:src-tauri/src/mapsim.rs). */
-async function mapWatch(version: string, lines: readonly string[]): Promise<Watch | string | undefined> {
-  const viewer = await (viewerLua ??= fetch(new URL("./viewer.lua", location.href).href).then((response) => response.text()));
-  let answer: string;
-  try {
-    answer = await api.mapReplayOpen(version, `${lines.join("\n")}\n`, viewer);
-  } catch (error) {
-    if (String(error).startsWith("no map of version")) return undefined;
-    return String(error);
-  }
-  const { id, opened } = JSON.parse(answer) as { id: number; opened: { first: number; last: number; frame: number } | { problem: string } };
-  if ("problem" in opened) {
-    api.mapReplayClose(id);
-    return opened.problem;
-  }
-  const step = async (seek: boolean, frames: number) => {
-    const stepped = JSON.parse(await api.mapReplayStep(id, seek, frames)) as Stepped;
-    if ("problem" in stepped) throw new Error(stepped.problem);
-    return stepped;
-  };
-  let shown = await step(true, opened.first);
-  return {
-    first: opened.first,
-    last: opened.last,
-    get frame() {
-      return shown.frame;
-    },
-    get scene() {
-      return shown.scene;
-    },
-    async advance(frames) {
-      shown = await step(false, frames);
-      return !shown.ended;
-    },
-    async seek(frame) {
-      shown = await step(true, frame);
-    },
-    close: () => api.mapReplayClose(id),
-  };
-}
-
-const SLOTS = ["P1", "P2", "P3", "P4"];
-
-function title(entry: ReplayEntry): string {
-  const record = entry.record;
-  if (record === undefined) return `Replay ${entry.serial}`;
-  const winner = record.fighters.find((f) => f.slot === record.winner);
-  return `${record.fighters.map((f) => f.hero).join(" vs ")} · ${record.interrupted ? "ended early" : winner ? `${winner.hero} won` : "draw"}`;
-}
 
 /** The viewer: a canvas, play and pause, a frame back and forward, and a seek bar. */
 function viewerCard() {
@@ -182,7 +90,7 @@ function viewerCard() {
 }
 
 export function replaysPage(root: HTMLElement): () => void {
-  const sims = simulations();
+  const sims = simulations(api, location.href);
   const list = h("ol.matches");
   const status = h("p.note");
   const refreshButton = h("button.primary", { type: "button" }, "Look for new replays");
@@ -221,9 +129,9 @@ export function replaysPage(root: HTMLElement): () => void {
   };
 
   const row = (entry: ReplayEntry, text: string, game: WarcraftGame | undefined) => {
-    const names = SLOTS.map((slot) => entry.record?.fighters.find((f) => f.slot === slot)?.hero ?? slot);
+    const names = replayNames(entry);
     const watchButton = h("button.primary", { type: "button" }, "Watch");
-    watchButton.addEventListener("click", async () => void watch(title(entry), await replayLines(entry, text), names));
+    watchButton.addEventListener("click", async () => void watch(replayTitle(entry), await replayLines(entry, text), names));
     const share = h("button", { type: "button", title: "Keep the whole replay as one file you can copy to another computer" }, "Save a copy to share");
     const saved = h("span.muted.saved");
     share.addEventListener("click", async () => {
@@ -231,7 +139,6 @@ export function replaysPage(root: HTMLElement): () => void {
       if (typeof lines === "string") saved.textContent = `This replay can't be read: ${lines}.`;
       else saved.textContent = `Saved as ${await api.keepReplay(keptName(lines), `${lines.join("\n")}\n`)}`;
     });
-    const record = entry.record;
     const when = entry.modified > 0 ? new Date(entry.modified).toLocaleString() : "";
     return h(
       "li.match",
@@ -239,8 +146,8 @@ export function replaysPage(root: HTMLElement): () => void {
       h(
         "div.match-head",
         {},
-        h("span.result", {}, title(entry)),
-        h("span.muted", {}, [record?.stage, duration(entry.frames)].filter(Boolean).join(" · ")),
+        h("span.result", {}, replayTitle(entry)),
+        h("span.muted", {}, replayDetail(entry)),
         h("span.muted", {}, versionName(entry.version, entry.build)),
         h("span.muted.when", {}, when),
       ),

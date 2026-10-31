@@ -6,7 +6,7 @@
 // the client ships its own and keeps every one it has played.
 import { type ReplayHeader, joinReplay, parseReplayHeader, parseReplayPart } from "../kit/sim.js";
 import type { ReplayScene, ReplayViewer } from "../kit/sim.js";
-import { type MatchRecord, type RecordFile, parseRecord, preloadLines } from "./records";
+import { type MatchRecord, type RecordFile, duration, parseRecord, preloadLines } from "./records";
 
 export type { ReplayScene, ReplayViewer } from "../kit/sim.js";
 
@@ -181,3 +181,16 @@ export function warcraftName(ended: number): string {
   const two = (n: number) => String(n).padStart(2, "0");
   return `Smashcraft ${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}.${two(at.getMinutes())}`;
 }
+
+export const SLOTS = ["P1", "P2", "P3", "P4"];
+
+export function replayTitle(entry: ReplayEntry): string {
+  const record = entry.record;
+  if (record === undefined) return `Replay ${entry.serial}`;
+  const winner = record.fighters.find((f) => f.slot === record.winner);
+  return `${record.fighters.map((f) => f.hero).join(" vs ")} · ${record.interrupted ? "ended early" : winner ? `${winner.hero} won` : "draw"}`;
+}
+
+export const replayNames = (entry: ReplayEntry): string[] => SLOTS.map((slot) => entry.record?.fighters.find((f) => f.slot === slot)?.hero ?? slot);
+
+export const replayDetail = (entry: ReplayEntry): string => [entry.record?.stage, duration(entry.frames)].filter(Boolean).join(" · ");

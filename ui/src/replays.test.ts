@@ -7,7 +7,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as ownSimulation from "../kit/sim.js";
 import { Playback, clock } from "./playback";
-import { type ReplayFile, type Simulation, type Simulations, bundleWatch, type WarcraftGame, joinedReplay, keptName, openForWatching, replayEntries, warcraftGameOf, warcraftName } from "./replays";
+import { duration, type FighterRecord, type MatchRecord } from "./records";
+import { type ReplayEntry, type ReplayFile, SLOTS, type Simulation, type Simulations, bundleWatch, type WarcraftGame, joinedReplay, keptName, openForWatching, replayDetail, replayEntries, replayNames, replayTitle, warcraftGameOf, warcraftName } from "./replays";
 
 /** Lines as Warcraft writes a Preload file. */
 const preload = (lines: readonly string[]) => `function PreloadFiles takes nothing returns nothing\n${lines.map((line) => `\tcall Preload( "${line}" )\n`).join("")}endfunction\n`;
@@ -134,4 +135,17 @@ test("a kept game's Replays-menu name reads back as the local minute it ended (s
     const at = new Date(ended);
     expect([y, mo, d, h, mi]).toEqual([at.getFullYear(), at.getMonth() + 1, at.getDate(), at.getHours(), at.getMinutes()]);
   }
+});
+
+test("a replay row reads its match: who fought and how it ended, the stage and length, and fighters by slot; a replay with no record falls back to its serial and slots", () => {
+  const fighter = (slot: string, hero: string) => ({ slot, hero }) as FighterRecord;
+  const entry = (record?: Partial<MatchRecord>) => ({ serial: 12, frames: 3600, ...(record && { record: { fighters: [fighter("P1", "Mario"), fighter("P3", "Link")], winner: "P3", interrupted: false, stage: "Field", ...record } as MatchRecord }) }) as ReplayEntry;
+  expect(replayTitle(entry({}))).toBe("Mario vs Link · Link won");
+  expect(replayTitle(entry({ winner: "none" }))).toBe("Mario vs Link · draw");
+  expect(replayTitle(entry({ interrupted: true }))).toBe("Mario vs Link · ended early");
+  expect(replayTitle(entry())).toBe("Replay 12");
+  expect(replayNames(entry({}))).toEqual(["Mario", "P2", "Link", "P4"]);
+  expect(replayNames(entry())).toEqual(SLOTS);
+  expect(replayDetail(entry({}))).toBe(`Field · ${duration(3600)}`);
+  expect(replayDetail(entry())).toBe(duration(3600));
 });

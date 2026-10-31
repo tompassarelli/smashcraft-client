@@ -47,3 +47,5 @@ export const api = {
   onInput: (handler: (input: InputView) => void) => tauri().event.listen<InputView>("input", (e) => handler(e.payload)),
   onPlay: (handler: (state: PlayState) => void) => tauri().event.listen<PlayState>("play", (e) => handler(e.payload)),
 };
+
+export type Api = typeof api;
