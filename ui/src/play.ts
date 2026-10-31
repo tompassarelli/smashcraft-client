@@ -1,10 +1,10 @@
 import { h } from "./dom";
 import type { PlayState } from "./controller";
 import { stepsAfterError } from "./play-steps";
-import { api } from "./api";
+import type { Api } from "./api";
 
 /** The header's Play button and the steps of the current run beneath it. */
-export function playButton(): HTMLElement {
+export function playButton(api: Api): HTMLElement {
   const button = h("button.play", { type: "button" }, "Play");
   const steps = h("ol.play-steps");
   const panel = h("div.play-panel", { hidden: true }, h("h3", {}, "Getting you into a match"), steps);

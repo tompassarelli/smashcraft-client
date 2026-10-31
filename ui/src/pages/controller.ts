@@ -1,6 +1,6 @@
 import { h } from "../dom";
 import { PROFILE_CHOICES, PROFILE_LABEL, type Bindings, type ControllerState, type ControllerSettings, type ProfileChoice, type RightStick } from "../controller";
-import { api } from "../api";
+import type { Api } from "../api";
 import { NEUTRAL, padView } from "./pad";
 import { statusCard } from "./status";
 
@@ -22,7 +22,7 @@ function profileCard(onChoice: (choice: ProfileChoice) => void) {
   };
 }
 
-function mappingCard(pad: ReturnType<typeof padView>) {
+function mappingCard(pad: ReturnType<typeof padView>, api: Api) {
   const presetSelect = h("select", { "aria-label": "Smashcraft pad preset" });
   const triggerSelects = { left: h("select", { "aria-label": "Left trigger shield" }), right: h("select", { "aria-label": "Right trigger shield" }) };
   for (const select of Object.values(triggerSelects)) {
@@ -93,7 +93,7 @@ function mappingCard(pad: ReturnType<typeof padView>) {
   return { el, renderSettings, load };
 }
 
-function settingsCard() {
+function settingsCard(api: Api) {
   const toggle = h("input", { type: "checkbox" });
   toggle.addEventListener("change", async () => {
     toggle.disabled = true;
@@ -112,15 +112,15 @@ function settingsCard() {
   );
 }
 
-export function controllerPage(root: HTMLElement): () => void {
-  const status = statusCard();
+export function controllerPage(root: HTMLElement, api: Api): () => void {
+  const status = statusCard(api);
   const pad = padView();
   const profile = profileCard((choice) => void api.setProfile(choice));
-  const mapping = mappingCard(pad);
+  const mapping = mappingCard(pad, api);
   root.append(
     status.el,
     mapping.el,
-    h("div.grid", {}, profile.el, settingsCard()),
+    h("div.grid", {}, profile.el, settingsCard(api)),
   );
   let link: ControllerState["link"] = "off";
   const onState = (s: ControllerState) => {

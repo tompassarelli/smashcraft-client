@@ -6,7 +6,7 @@ import {
   SLOTS, type ReplayEntry, type WarcraftGame, joinedReplay, keptName, openForWatching, replayDetail, replayEntries, replayNames, replayTitle, versionName,
   warcraftGameOf, warcraftName,
 } from "../replays";
-import { api } from "../api";
+import type { Api } from "../api";
 
 /** The viewer: a canvas, play and pause, a frame back and forward, and a seek bar. */
 function viewerCard() {
@@ -89,7 +89,7 @@ function viewerCard() {
   };
 }
 
-export function replaysPage(root: HTMLElement): () => void {
+export function replaysPage(root: HTMLElement, api: Api): () => void {
   const sims = simulations(api, location.href);
   const list = h("ol.matches");
   const status = h("p.note");

@@ -1,7 +1,7 @@
 import { h } from "../dom";
 import { refreshHistory } from "../history";
 import { type FighterRecord, type IngestResult, type MatchRecord, duration } from "../records";
-import { api } from "../api";
+import type { Api } from "../api";
 
 const MODE: Record<string, string> = { versus: "Versus", practice: "Practice", training: "Training", endless: "Endless" };
 
@@ -28,7 +28,7 @@ function summary(result: IngestResult): string {
   return parts.join(", ");
 }
 
-function foldersCard(onChange: () => void): { el: HTMLElement; load: () => Promise<void> } {
+function foldersCard(api: Api, onChange: () => void): { el: HTMLElement; load: () => Promise<void> } {
   const list = h("ul.folders");
   const input = h("input.folder-input", { type: "text", placeholder: "…/Documents/Warcraft III/CustomMapData" });
   const add = h("button", { type: "submit" }, "Add folder");
@@ -73,7 +73,7 @@ function foldersCard(onChange: () => void): { el: HTMLElement; load: () => Promi
   };
 }
 
-export function historyPage(root: HTMLElement): () => void {
+export function historyPage(root: HTMLElement, api: Api): () => void {
   const list = h("ol.matches");
   const status = h("p.note");
   const check = h("button.primary", { type: "button" }, "Look for new matches");
@@ -81,7 +81,7 @@ export function historyPage(root: HTMLElement): () => void {
   const refresh = async () => {
     check.disabled = true;
     try {
-      const result = await refreshHistory();
+      const result = await refreshHistory(api);
       if (!live) return;
       status.textContent = summary(result);
       list.replaceChildren(...result.store.records.map(matchRow));
@@ -93,7 +93,7 @@ export function historyPage(root: HTMLElement): () => void {
     }
   };
   check.addEventListener("click", () => void refresh());
-  const folders = foldersCard(() => void refresh());
+  const folders = foldersCard(api, () => void refresh());
   root.append(h("section.card", {}, h("div.card-head", {}, h("h2", {}, "Match history"), check), status, list), folders.el);
   void folders.load().then(refresh);
   return () => {

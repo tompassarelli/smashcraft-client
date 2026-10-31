@@ -1,10 +1,10 @@
 import { h } from "../dom";
 import type { ControllerState } from "../controller";
-import { api } from "../api";
+import type { Api } from "../api";
 
 const KEYBOARD_NOTE = "Keyboard play needs no controller. Set your keys in Warcraft III's own Controls screen (WASD, Box or Custom).";
 
-export function statusCard(): { el: HTMLElement; render: (s: ControllerState) => void; setMap: (map: string | null) => void } {
+export function statusCard(api: Api): { el: HTMLElement; render: (s: ControllerState) => void; setMap: (map: string | null) => void } {
   const rows = h("div.rows");
   const keyboard = h("p.note", { hidden: true }, KEYBOARD_NOTE);
   let shown: ControllerState | undefined;

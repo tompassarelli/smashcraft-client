@@ -9,3 +9,5 @@ export const onlineApi = {
   standaloneCancel: () => invoke<void>("standalone_cancel"),
   onStandalone: (handler: (state: OnlineState) => void) => tauri().event.listen<OnlineState>("standalone", (e) => handler(e.payload)),
 };
+
+export type OnlineApi = typeof onlineApi;

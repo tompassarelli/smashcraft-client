@@ -6,7 +6,7 @@ Paths are repo-relative; the tables say where things are today, and "moves in Cn
 
 ## Modules and use direction
 
-A module may use only the modules in its "may use" column. The UI talks to Rust only through `ui/src/api.ts` and, for the Online page, `ui/src/tauri-online.ts`.
+A module may use only the modules in its "may use" column. The UI talks to Rust only through `ui/src/api.ts` and, for the Online page, `ui/src/tauri-online.ts`; `ui/src/main.ts` passes them to the pages, so the rest runs under `bun test` with a fake.
 
 | module | today | responsibility | may use |
 |---|---|---|---|

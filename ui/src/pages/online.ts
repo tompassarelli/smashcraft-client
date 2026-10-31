@@ -1,7 +1,7 @@
 import { h } from "../dom";
 import type { OnlineState } from "../controller";
 import { looksLikeRelayCode, type StandaloneView, standaloneView } from "../online";
-import { onlineApi } from "../tauri-online";
+import type { OnlineApi } from "../tauri-online";
 
 const EMPTY: OnlineState = { available: false, running: false, map: null, mode: null, lines: [], finished: null };
 
@@ -42,7 +42,7 @@ function playGrid(state: OnlineState, view: StandaloneView, codeInput: HTMLEleme
 }
 
 /** Online play is Smashcraft's own window through Wisp's relay; Warcraft III stays closed. */
-export function onlinePage(root: HTMLElement): () => void {
+export function onlinePage(root: HTMLElement, onlineApi: OnlineApi): () => void {
   let live = true;
   let run: OnlineState = EMPTY;
   let problem: string | undefined;

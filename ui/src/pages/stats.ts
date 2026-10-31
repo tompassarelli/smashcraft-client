@@ -1,4 +1,5 @@
 import { h } from "../dom";
+import type { Api } from "../api";
 import { refreshHistory } from "../history";
 import { type Stats, computeStats, perMatch, percent } from "../stats";
 
@@ -27,9 +28,9 @@ function render(stats: Stats): HTMLElement[] {
   ];
 }
 
-export function statsPage(root: HTMLElement): () => void {
+export function statsPage(root: HTMLElement, api: Api): () => void {
   let live = true;
-  void refreshHistory()
+  void refreshHistory(api)
     .then((result) => live && root.replaceChildren(...render(computeStats(result.store.records))))
     .catch((error) => live && root.replaceChildren(h("p.note", {}, String(error))));
   return () => {
