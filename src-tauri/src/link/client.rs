@@ -8,6 +8,8 @@ use std::time::{Duration, Instant};
 
 use padbridge_model::{ClientMessage, InputView, ServiceMessage, Snapshot};
 
+use crate::env::Env;
+
 use super::supervisor::{Action, ControllerState, Supervisor};
 
 /// Where status goes: the window and tray in the app, a recorder in tests.
@@ -27,35 +29,36 @@ pub trait Starter: Send + Sync + 'static {
 /// window closes.
 pub struct BundledService {
     pub log: Option<PathBuf>,
+    pub env: Env,
 }
 
-pub fn service_program() -> PathBuf {
-    if let Some(path) = std::env::var_os("WC3_CONTROLLER_SERVICE") {
-        return path.into();
+pub fn service_program(env: &Env) -> PathBuf {
+    if let Some(path) = &env.controller_service {
+        return path.clone();
     }
     let name = if cfg!(windows) { "padbridge.exe" } else { "padbridge" };
-    std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join(name))).filter(|path| path.exists()).unwrap_or_else(|| name.into())
+    env.exe_dir().map(|dir| dir.join(name)).filter(|path| path.exists()).unwrap_or_else(|| name.into())
 }
 
 /// Smashcraft's plug-in (smashcraft:controller): `wc3-journal` beside this
 /// executable, else the one `bun wisp controller` installs; none leaves the
 /// service on Any map.
-pub fn plugin_program() -> Option<PathBuf> {
-    let beside = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.join("wc3-journal")));
-    let installed = std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share/smashcraft-build-inputs/controller/wc3-journal"));
+pub fn plugin_program(env: &Env) -> Option<PathBuf> {
+    let beside = env.exe_dir().map(|dir| dir.join("wc3-journal"));
+    let installed = env.home.as_ref().map(|home| home.join(".local/share/smashcraft-build-inputs/controller/wc3-journal"));
     [beside, installed].into_iter().flatten().find(|path| path.exists())
 }
 
 impl Starter for BundledService {
     fn start(&self) -> Result<(), String> {
-        let program = service_program();
+        let program = service_program(&self.env);
         let stderr = match &self.log {
             Some(path) => std::fs::OpenOptions::new().create(true).append(true).open(path).map(Stdio::from).unwrap_or_else(|_| Stdio::null()),
             None => Stdio::null(),
         };
         let mut child = Command::new(&program)
             .arg("--service")
-            .args(plugin_program().map(|plugin| vec!["--plugin".into(), plugin.into_os_string()]).unwrap_or_default())
+            .args(plugin_program(&self.env).map(|plugin| vec!["--plugin".into(), plugin.into_os_string()]).unwrap_or_default())
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(stderr)
@@ -290,5 +293,47 @@ mod tests {
         shared.stop();
         drop(conn);
         link.join().unwrap();
+    }
+
+    fn install_folder(name: &str, files: &[&str]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("smashcraft-link-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for file in files {
+            std::fs::write(dir.join(file), "").unwrap();
+        }
+        dir
+    }
+
+    #[test]
+    fn the_service_is_the_named_one_else_padbridge_beside_this_executable_else_padbridge_on_the_path() {
+        let name = if cfg!(windows) { "padbridge.exe" } else { "padbridge" };
+        let named = Env { controller_service: Some("/opt/padbridge-test".into()), ..Env::default() };
+        assert_eq!(service_program(&named), PathBuf::from("/opt/padbridge-test"));
+        let install = install_folder("service", &[name]);
+        let beside = Env { current_exe: Some(install.join("smashcraft")), ..Env::default() };
+        assert_eq!(service_program(&beside), install.join(name));
+        let empty = install_folder("service-empty", &[]);
+        let alone = Env { current_exe: Some(empty.join("smashcraft")), ..Env::default() };
+        assert_eq!(service_program(&alone), PathBuf::from(name));
+        assert_eq!(service_program(&Env::default()), PathBuf::from(name));
+        std::fs::remove_dir_all(install).unwrap();
+        std::fs::remove_dir_all(empty).unwrap();
+    }
+
+    #[test]
+    fn the_plug_in_is_beside_this_executable_else_the_one_wisp_installs_in_the_home_folder_else_none() {
+        let install = install_folder("plugin", &["wc3-journal"]);
+        let beside = Env { current_exe: Some(install.join("smashcraft")), ..Env::default() };
+        assert_eq!(plugin_program(&beside), Some(install.join("wc3-journal")));
+        let home = install_folder("plugin-home", &[]);
+        let installed = home.join(".local/share/smashcraft-build-inputs/controller");
+        std::fs::create_dir_all(&installed).unwrap();
+        std::fs::write(installed.join("wc3-journal"), "").unwrap();
+        let wisp = Env { home: Some(home.clone()), ..Env::default() };
+        assert_eq!(plugin_program(&wisp), Some(installed.join("wc3-journal")));
+        assert_eq!(plugin_program(&Env::default()), None);
+        std::fs::remove_dir_all(install).unwrap();
+        std::fs::remove_dir_all(home).unwrap();
     }
 }

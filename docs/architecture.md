@@ -10,10 +10,11 @@ A module may use only the modules in its "may use" column. The UI talks to Rust 
 
 | module | today | responsibility | may use |
 |---|---|---|---|
-| link | `src-tauri/src/link/`: mod (service port), supervisor, client | Start and watch padbridge and its plug-in; TCP client | padbridge protocol crate only |
-| game-files | `src-tauri/src/`: records, replays, warcraft_replays, mapsim, mpq, lua32 | Read the map's records, replays and Lua through the kit; keep `LastReplay.w3g` copies | none |
-| launch | `src-tauri/src/`: play, online; `src-tauri/src/launch/`: steam, window | Start Warcraft; online play through `bun wisp play --standalone` only, never touching a running Warcraft III (smashcraft-client#28) | game-files |
-| app | `src-tauri/src/lib.rs` (setup); `commands/` (handlers by page and the command list); sink (tray light and menu); settings, tray, autostart, single | Tauri wiring and command handlers | link, game-files, launch |
+| env | `src-tauri/src/env.rs` | The process environment (`HOME`, `WARCRAFT_III`, `SMASHCRAFT_TS`, the ports and the rest), read once in `run()` and passed down; tests pass a fake | none |
+| link | `src-tauri/src/link/`: mod (service port), supervisor, client | Start and watch padbridge and its plug-in; TCP client | padbridge protocol crate, env |
+| game-files | `src-tauri/src/`: records, replays, warcraft_replays, mapsim, mpq, lua32 | Read the map's records, replays and Lua through the kit; keep `LastReplay.w3g` copies | env |
+| launch | `src-tauri/src/`: play, online; `src-tauri/src/launch/`: steam, window | Start Warcraft; online play through `bun wisp play --standalone` only, never touching a running Warcraft III (smashcraft-client#28) | game-files, env |
+| app | `src-tauri/src/lib.rs` (setup); `commands/` (handlers by page and the command list); sink (tray light and menu); settings, tray, autostart, single | Tauri wiring and command handlers | link, game-files, launch, env |
 | ui-types | `ui/src/controller.ts` (hand mirror) | Protocol and command types | none |
 | ui-core | `ui/src/`: tauri, tauri-online, dom, draw, playback, stats, bindings, mapwatch, history, online, play, records, replays, router | Invoke wrappers and pure helpers | ui-types |
 | ui-pages | `ui/src/pages/`, `ui/src/main.ts` | One page per tab | ui-core, ui-types |

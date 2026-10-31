@@ -18,12 +18,18 @@ name = "tests"
 thresholds = { function_lines = 150, function_complexity = 30 }
 paths = ["**/*.test.ts", "src-tauri/tests/**", "ui/test/**"]
 responsibility = "Bun and cargo tests."
-may_use = ["ui-generated", "ui-core", "ui-pages", "scripts", "link", "game-files", "launch", "app"]
+may_use = ["ui-generated", "ui-core", "ui-pages", "scripts", "link", "game-files", "launch", "app", "env"]
 
 [[module]]
 name = "files"
 paths = ["src-tauri/src/files.rs"]
 responsibility = "File helpers the stores share: atomic writes, modified times, numbered names and the TextFile the pages read."
+may_use = []
+
+[[module]]
+name = "env"
+paths = ["src-tauri/src/env.rs"]
+responsibility = "The process environment, read once at start and passed to the modules that need it."
 may_use = []
 
 [[module]]
@@ -36,26 +42,26 @@ may_use = ["files"]
 name = "link"
 paths = ["src-tauri/src/link/**", "src-tauri/src/link.rs"]
 responsibility = "Start and watch padbridge and the map plug-in; TCP client of the padbridge protocol."
-may_use = []
+may_use = ["env"]
 
 [[module]]
 name = "game-files"
 paths = ["src-tauri/src/game/**", "src-tauri/src/records.rs", "src-tauri/src/replays.rs", "src-tauri/src/warcraft_replays.rs",
          "src-tauri/src/mapsim.rs", "src-tauri/src/mapsim.lua", "src-tauri/src/mpq.rs", "src-tauri/src/lua32.rs"]
 responsibility = "Read the map's records, replays and Lua through the client kit contract; keep LastReplay.w3g copies."
-may_use = ["files", "sims"]
+may_use = ["files", "sims", "env"]
 
 [[module]]
 name = "launch"
 paths = ["src-tauri/src/launch/**", "src-tauri/src/play.rs", "src-tauri/src/online.rs"]
 responsibility = "Start Warcraft III on the installed map, and run online play in Wisp's standalone window through its relay; nothing here touches a running Warcraft III."
-may_use = ["game-files"]
+may_use = ["game-files", "env"]
 
 [[module]]
 name = "app"
 paths = ["src-tauri/src/**", "src-tauri/build.rs"]
 responsibility = "Tauri setup, tray, window, settings, single-instance lock and command handlers grouped by page."
-may_use = ["link", "game-files", "launch", "files", "sims"]
+may_use = ["link", "game-files", "launch", "files", "sims", "env"]
 
 [[module]]
 name = "ui-generated"

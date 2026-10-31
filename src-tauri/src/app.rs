@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use tauri::{App, Manager, Window, WindowEvent};
 
+use crate::env::Env;
 use crate::link::{self, ControllerLink};
 use crate::settings::Store;
 use crate::sims::SimStore;
@@ -14,7 +15,7 @@ use crate::sink::{TauriSink, add_tray, show_input};
 use crate::state::{AppState, show_window};
 use crate::{instance_lock, mapsim, records, replays, warcraft_replays};
 
-pub fn setup(app: &mut App, instance: TcpListener, hidden: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub fn setup(app: &mut App, env: Env, instance: TcpListener, hidden: bool) -> Result<(), Box<dyn std::error::Error>> {
     let store = Store::new(&app.path().app_config_dir()?);
     let history = records::History::new(&app.path().app_data_dir()?);
     let data = app.path().app_data_dir()?;
@@ -39,10 +40,11 @@ pub fn setup(app: &mut App, instance: TcpListener, hidden: bool) -> Result<(), B
         move || show_input(app, pending)
     });
     let sink = Arc::new(TauriSink { app: app.handle().clone(), light: Mutex::new(Some(initial)), input: pending });
-    let starter = Arc::new(link::BundledService { log });
+    let starter = Arc::new(link::BundledService { log, env: env.clone() });
     std::thread::spawn({
         let shared = shared.clone();
-        move || link::run(shared, link::service_port(), sink, starter)
+        let port = link::service_port(&env);
+        move || link::run(shared, port, sink, starter)
     });
     std::thread::spawn({
         let app = app.handle().clone();
@@ -52,7 +54,7 @@ pub fn setup(app: &mut App, instance: TcpListener, hidden: bool) -> Result<(), B
         let (app, library) = (app.handle().clone(), warcraft.clone());
         move || warcraft_replays::watch(library, move || app.state::<AppState>().folders())
     });
-    app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, play: Arc::default(), standalone: Arc::default(), log_dir, kept, mapsims, warcraft });
+    app.manage(AppState { link: shared, store, settings: Mutex::new(settings), history, play: Arc::default(), standalone: Arc::default(), env, log_dir, kept, mapsims, warcraft });
     if !hidden {
         show_window(app.handle());
     }

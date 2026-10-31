@@ -5,12 +5,14 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::time::Duration;
 
+use crate::env::Env;
+
 /// `SMASHCRAFT_CLIENT_PORT` overrides it for tests.
 pub const CLIENT_PORT: u16 = 47632;
 const SHOW: &[u8] = b"show\n";
 
-pub fn client_port() -> u16 {
-    std::env::var("SMASHCRAFT_CLIENT_PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(CLIENT_PORT)
+pub fn client_port(env: &Env) -> u16 {
+    env.client_port.unwrap_or(CLIENT_PORT)
 }
 
 pub enum Claim {

@@ -6,12 +6,14 @@
 mod client;
 mod supervisor;
 
+use crate::env::Env;
+
 pub use client::{BundledService, ControllerLink, Sink, run, service_program};
 pub use supervisor::ControllerState;
 
 /// The service's local interface (padbridge:model).
 pub const SERVICE_PORT: u16 = 47631;
 /// The interface port; `WC3_CONTROLLER_PORT` overrides it for a test service.
-pub fn service_port() -> u16 {
-    std::env::var("WC3_CONTROLLER_PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(SERVICE_PORT)
+pub fn service_port(env: &Env) -> u16 {
+    env.controller_port.unwrap_or(SERVICE_PORT)
 }

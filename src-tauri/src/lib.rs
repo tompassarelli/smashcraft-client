@@ -7,6 +7,7 @@ mod app;
 mod autostart;
 mod cli;
 mod commands;
+mod env;
 mod files;
 mod instance_lock;
 mod launch;
@@ -28,16 +29,17 @@ mod warcraft_replays;
 use tauri_plugin_autostart::MacosLauncher;
 
 pub fn run() {
+    let env = env::Env::read();
     if std::env::args().any(|arg| arg == "--check") {
-        return cli::check();
+        return cli::check(&env);
     }
     let hidden = std::env::args().any(|arg| arg == "--hidden");
-    let instance_lock::Claim::First(instance) = instance_lock::claim(instance_lock::client_port()) else {
+    let instance_lock::Claim::First(instance) = instance_lock::claim(instance_lock::client_port(&env)) else {
         return;
     };
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
-        .setup(move |app| app::setup(app, instance, hidden))
+        .setup(move |app| app::setup(app, env, instance, hidden))
         .on_window_event(app::hide_on_close)
         .invoke_handler(commands::handler())
         .run(tauri::generate_context!())

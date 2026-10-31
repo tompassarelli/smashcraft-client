@@ -15,6 +15,8 @@ use std::process::{Child, ChildStderr, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
+use crate::env::Env;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
@@ -58,18 +60,10 @@ fn signal_group(group: u32, signal: i32) -> bool {
     i32::try_from(group).is_ok_and(|group| unsafe { libc::kill(-group, signal) } == 0)
 }
 
-/// The environment variable that names Smashcraft's tools folder (its ts folder).
-pub const TOOLS_VARIABLE: &str = "SMASHCRAFT_TS";
-
 /// Smashcraft's tools folder, when `TOOLS_VARIABLE` names one with a package.json.
-pub fn tools_dir() -> Option<PathBuf> {
-    let dir = PathBuf::from(std::env::var_os(TOOLS_VARIABLE)?);
+pub fn tools_dir(env: &Env) -> Option<PathBuf> {
+    let dir = env.tools.clone()?;
     dir.join("package.json").exists().then_some(dir)
-}
-
-/// The bun that runs Smashcraft's tools: `BUN`, or `bun` on the PATH.
-pub fn bun() -> OsString {
-    std::env::var_os("BUN").unwrap_or_else(|| "bun".into())
 }
 
 /// The program a run starts, with its arguments and the folder it runs in.
@@ -92,9 +86,9 @@ pub struct Online {
 }
 
 impl Online {
-    pub fn state(&self) -> OnlineState {
+    pub fn state(&self, tools_found: bool) -> OnlineState {
         let mut state = self.state.lock().unwrap().clone();
-        state.available = tools_dir().is_some();
+        state.available = tools_found;
         state
     }
 

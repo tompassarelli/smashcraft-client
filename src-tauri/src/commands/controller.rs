@@ -88,11 +88,11 @@ pub fn bindings(state: State<AppState>) -> Bindings {
 }
 
 #[tauri::command]
-pub fn start_with_computer(app: AppHandle) -> bool {
-    autostart::is_enabled(&app)
+pub fn start_with_computer(app: AppHandle, state: State<AppState>) -> bool {
+    autostart::is_enabled(&app, &state.env)
 }
 
 #[tauri::command]
-pub fn set_start_with_computer(app: AppHandle, on: bool) -> Result<bool, String> {
-    autostart::set(&app, on)
+pub fn set_start_with_computer(app: AppHandle, state: State<AppState>, on: bool) -> Result<bool, String> {
+    autostart::set(&app, &state.env, on)
 }

@@ -4,6 +4,7 @@
 //! (smashcraft-client:ui/src/records.ts); this side only reads the folders and
 //! keeps the store as JSON in the client's data folder.
 
+use crate::env::Env;
 use crate::files::{self, TextFile};
 use std::path::{Path, PathBuf};
 
@@ -79,12 +80,11 @@ pub fn find_folders(home: &Path, wine_prefix: Option<&Path>) -> Vec<String> {
 }
 
 /// The record folders found on this computer, for a player who hasn't set them.
-pub fn default_folders() -> Vec<String> {
-    let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) else {
+pub fn default_folders(env: &Env) -> Vec<String> {
+    let Some(home) = env.user_profile.as_ref().or(env.home.as_ref()) else {
         return Vec::new();
     };
-    let wine_prefix = std::env::var_os("WINEPREFIX").map(PathBuf::from);
-    find_folders(Path::new(&home), wine_prefix.as_deref())
+    find_folders(home, env.wine_prefix.as_deref())
 }
 
 /// The history store: the pages' JSON, kept as written.

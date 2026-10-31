@@ -3,6 +3,8 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use crate::env::Env;
+
 pub const SHORTCUT: &str = "Warcraft III (Battle.net)";
 
 const APP_ID_KEY: &[u8] = b"\x02appid\0";
@@ -24,8 +26,8 @@ pub fn rungame_url(app_id: u32) -> String {
     format!("steam://rungameid/{}", (u64::from(app_id) << 32) | 0x0200_0000)
 }
 
-fn shortcut_files() -> Vec<PathBuf> {
-    let Some(home) = std::env::var_os("HOME").map(PathBuf::from) else { return Vec::new() };
+fn shortcut_files(env: &Env) -> Vec<PathBuf> {
+    let Some(home) = env.home.clone() else { return Vec::new() };
     [".local/share/Steam", ".steam/steam"]
         .iter()
         .filter_map(|root| std::fs::read_dir(home.join(root).join("userdata")).ok())
@@ -40,10 +42,10 @@ fn find_app_id(files: &[PathBuf]) -> Option<u32> {
 }
 
 /// Asks Steam to start the Battle.net shortcut.
-pub fn start_shortcut() -> Result<(), String> {
-    let files = shortcut_files();
+pub fn start_shortcut(env: &Env) -> Result<(), String> {
+    let files = shortcut_files(env);
     let id = find_app_id(&files).ok_or_else(|| format!("Steam has no \"{SHORTCUT}\" shortcut to start"))?;
-    let steam = std::env::var_os("STEAM").unwrap_or_else(|| "steam".into());
+    let steam = env.steam.clone().unwrap_or_else(|| "steam".into());
     let mut child = Command::new(&steam)
         .arg(rungame_url(id))
         .stdin(Stdio::null())

@@ -1,7 +1,8 @@
-use crate::{link, mapsim, online, play, records};
+use crate::env::Env;
+use crate::{link, mapsim, play, records};
 
-pub fn check() {
-    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], link::service_port()));
+pub fn check(env: &Env) {
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], link::service_port(env)));
     let status = std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(1)).ok().and_then(|stream| {
         stream.set_read_timeout(Some(std::time::Duration::from_secs(2))).ok()?;
         let mut line = String::new();
@@ -9,11 +10,11 @@ pub fn check() {
         Some(line.trim_end().to_owned())
     });
     println!("controller service on {addr}: {}", status.as_deref().unwrap_or("not answering"));
-    println!("bundled service: {}", link::service_program().display());
-    let maps = mapsim::maps_folders(&records::default_folders());
+    println!("bundled service: {}", link::service_program(env).display());
+    let maps = mapsim::maps_folders(&records::default_folders(env));
     println!("maps folders: {maps:?}");
     match play::current_map(&maps) {
         None => println!("play: no Smashcraft map in Maps/00-Smashcraft"),
-        Some(map) => println!("play: {} by {:?}", map.display(), play::route_for(&map, &play::Setup::from_env(false, online::tools_dir()))),
+        Some(map) => println!("play: {} by {:?}", map.display(), play::route_for(&map, &play::Setup::from_env(env, false))),
     }
 }
